@@ -5,12 +5,13 @@ See the LICENSE file and the LICENSE ORIGINS folder for this sample’s licensin
 import RealityKit
 import Metal
 
-@available(iOS 15.0, macOS 12.0, *)
+//MARK: - Entity extensions
 public extension Entity {
 
     ///Getting this Float does not take into account any opacity texture that may be set on the material, only the scale, but setting it will preserve any texture that may be present.
     /// - If multiple materials are present on this Entity, then the average opacity scale of the materials is returned.
     /// - This will NOT set the opacity on any descendant entities. If you would like to recursively set opacity, use `Entity.visit{ $0.opacity = newValue }`
+    @available(iOS 15.0, macOS 12.0, *)
     var opacity: Float {
         get {
             guard let modelComp = self.modelComponent else {return 1.0}
@@ -23,13 +24,39 @@ public extension Entity {
             }
         }
     }
+        
+    func modifyMaterials(_ closure: (RealityKit.Material) throws -> RealityKit.Material) rethrows {
+        try children.forEach { try $0.modifyMaterials(closure) }
+
+        guard var comp = components[ModelComponent.self] as? ModelComponent else { return }
+        comp.materials = try comp.materials.map { try closure($0) }
+        components[ModelComponent.self] = comp
+    }
+
+    @available(iOS 15.0, macOS 12.0, *)
+    func set(_ modifier: CustomMaterial.GeometryModifier) throws {
+        try modifyMaterials { try CustomMaterial(from: $0, geometryModifier: modifier) }
+    }
+
+    @available(iOS 14.0, macOS 11.0, *)
+    func attachDebugModelComponent(_ debugModel: ModelDebugOptionsComponent) {
+        components.set(debugModel)
+        children.forEach { $0.attachDebugModelComponent(debugModel) }
+    }
+
+    @available(iOS 15.0, macOS 11.0, *)
+    func removeDebugModelComponent() {
+        components[ModelDebugOptionsComponent.self] = nil
+        children.forEach { $0.removeDebugModelComponent() }
+    }
 }
+
+//MARK: - Material extensions
 
 public protocol HasOpacity: Material {
     ///Getting this Float does not take into account any opacity texture that may be set on the material, only the scale, but setting it will preserve any texture that may be present.
     var _opacity: Float {get set}
 }
-
 
 @available(iOS 15.0, macOS 12.0, *)
 extension PhysicallyBasedMaterial: HasOpacity {
@@ -42,6 +69,7 @@ extension PhysicallyBasedMaterial: HasOpacity {
         }
     }
 }
+
 //UnlitMaterial.Blending is a typealias for PhysicallyBasedMaterial.Blending, so we do not need to copy the code twice.
 @available(iOS 15.0, macOS 12.0, *)
 extension UnlitMaterial: HasOpacity {
@@ -83,6 +111,7 @@ public extension PhysicallyBasedMaterial.Blending {
         }
     }
 }
+
 //We could initialize a CustomMaterial.Blending from a PhysicallyBasedMaterial.Blending and re-use the same code, but we duplicate it here to save the performance cost of initialization, which may be especially useful in cases such as opacity animations.
 @available(iOS 15.0, macOS 12.0, *)
 extension CustomMaterial: HasOpacity {
@@ -145,7 +174,6 @@ public extension CustomMaterial.Blending {
     }
 }
 
-//MARK: -Material extensions
 @available(iOS 15.0, macOS 12.0, *)
 public extension RealityKit.Material {
     

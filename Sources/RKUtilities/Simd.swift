@@ -5,6 +5,20 @@ See the LICENSE file and the LICENSE ORIGINS folder for this sample’s licensin
 import simd
 import RealityKit
 
+// MARK: - Comparable extensions
+public extension Comparable {
+    
+    /// Returns self clamped between two values.
+    /// - If self is already between the two input values, returns self. If self is below a, returns a. If self is above b, returns b.
+    /// - Parameters:
+    ///   - a: The lower bound
+    ///   - b: The upper bound.
+    /// - Returns: self clamped between the two input values.
+    func clamped(_ a: Self, _ b: Self) -> Self {
+        min(max(self, a), b)
+    }
+}
+
 //MARK: - Float extensions
 public extension Float {
     
@@ -61,6 +75,7 @@ public extension SIMD2 where Scalar == Float {
 }
 
 //MARK: - simd_float3 extensions
+//This is the same type as SIMD3<Float>
 public extension SIMD3 where Scalar == Float {
     /// Determine if the vector is pointing somewhat upward in 3d space.
     /// -  Threshold for upwardness expressed as a constant value
@@ -74,6 +89,65 @@ public extension SIMD3 where Scalar == Float {
     var dotFourDescription: String { String(format: "(%0.4f, %0.4f, %0.4f)", x, y, z) }
     var dotTwoDescription: String { String(format: "(%0.2f, %0.2f, %0.2f)", x, y, z) }
     var fiveDotTwoDescription: String { String(format: "(%5.2f, %5.2f, %5.2f)", x, y, z) }
+
+    func smoothed(oldVal: simd_float3, amount smoothingAmount: Float) -> simd_float3 {
+        let smoothingAmount = smoothingAmount.clamped(0, 1)
+        return (oldVal * smoothingAmount) + (self * ( 1 - smoothingAmount))
+    }
+        
+    static var pitch: simd_float3 = [1, 0, 0]
+    
+    static var yaw: simd_float3 = [0, 1, 0]
+    
+    static var roll: simd_float3 = [0, 0, 1]
+    
+    static var up: simd_float3 = [0, 1, 0]
+    
+    static var forward: simd_float3 = [0, 0, -1]
+    
+    var avg: Float {
+        return Float.avg(self.x, self.y, self.z)
+    }
+    
+    var max: Float {
+        return Swift.max(self.x, self.y, self.z)
+    }
+    
+    func maxLength(_ maxLength: Float) -> simd_float3 {
+        let currentLength = length(self)
+        if currentLength > maxLength {
+            return self * (maxLength / currentLength)
+        }
+        return self
+    }
+    func minLength(_ minLength: Float) -> simd_float3 {
+        let currentLength = length(self)
+        if currentLength < minLength {
+            return self * (minLength / currentLength)
+        }
+        return self
+    }
+    
+    func toLength(_ newLength: Float) -> simd_float3 {
+        let currentLength = length(self)
+        return self * (newLength / currentLength)
+    }
+    
+    ///Elementwise minimum of all input vectors. Each component of the result is the smallest of the corresponding component of the inputs.
+    static func min(inputs: [simd_float3]) -> simd_float3 {
+        let x = inputs.map{$0.x}.min() ?? 0.0
+        let y = inputs.map{$0.y}.min() ?? 0.0
+        let z = inputs.map{$0.z}.min() ?? 0.0
+        return [x,y,z]
+    }
+    
+    ///Elementwise maximum of all input vectors. Each component of the result is the largest of the corresponding component of the inputs.
+    static func max(inputs: [simd_float3]) -> simd_float3 {
+        let x = inputs.map{$0.x}.max() ?? 0.0
+        let y = inputs.map{$0.y}.max() ?? 0.0
+        let z = inputs.map{$0.z}.max() ?? 0.0
+        return [x,y,z]
+    }
 }
 
 //MARK: - simd_float4 extensions
@@ -226,9 +300,8 @@ public extension float4x4 {
         columns.3.z = translation.z
     }
     init(scale: SIMD3<Float>) {
-        var localMatrix = matrix_identity_float4x4
-        localMatrix.scale = scale
-        self = localMatrix
+        self = matrix_identity_float4x4
+        self.scale = scale
     }
 
     init(rotationX angle: Float) {

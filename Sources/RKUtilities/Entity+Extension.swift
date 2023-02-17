@@ -13,29 +13,190 @@ public extension Entity {
             child.visit(using: block)
         }
     }
+    
+    func extents(includingInactive: Bool = true) -> simd_float3 {
+        return self.visualBounds(recursive: true, relativeTo: nil, excludeInactive: !includingInactive).extents
+    }
+    
+    ///There can only be up to one of each type of component in the Entity's ComponentSet.
+    func component<T: Component>(forType: T.Type) -> T? {
+        return self.components[T.self] as? T
+    }
+    
+    ///Components are value types so we must re-set them on the Entity every time they are modified. This method takes care of re-setting them for us.
+    func modifyComponent<T: Component>(forType: T.Type, _ closure: ( inout T) -> Void) {
         
-    func modifyMaterials(_ closure: (RealityKit.Material) throws -> RealityKit.Material) rethrows {
-        try children.forEach { try $0.modifyMaterials(closure) }
-
-        guard var comp = components[ModelComponent.self] as? ModelComponent else { return }
-        comp.materials = try comp.materials.map { try closure($0) }
-        components[ModelComponent.self] = comp
+        guard var component = component(forType: T.self) else { return }
+        closure(&component)
+        components[T.self] = component
     }
-
-    @available(iOS 15.0, macOS 12.0, *)
-    func set(_ modifier: CustomMaterial.GeometryModifier) throws {
-        try modifyMaterials { try CustomMaterial(from: $0, geometryModifier: modifier) }
+    
+    var modelComponent: ModelComponent? {
+        get {
+            return self.component(forType: ModelComponent.self)
+        } set {
+            self.components[ModelComponent.self] = newValue
+        }
     }
-
-    @available(iOS 14.0, macOS 11.0, *)
-    func attachDebugModelComponent(_ debugModel: ModelDebugOptionsComponent) {
-        components.set(debugModel)
-        children.forEach { $0.attachDebugModelComponent(debugModel) }
+    ///The Entity's transform in world space. That is, relative to `nil`.
+    ///- Use `worldTransform.matrix` to get the transform in the form of a 4x4 matrix.
+    var worldTransform: Transform {
+        return self.convert(transform: .init(), to: nil)
     }
-
-    @available(iOS 15.0, macOS 11.0, *)
-    func removeDebugModelComponent() {
-        components[ModelDebugOptionsComponent.self] = nil
-        children.forEach { $0.removeDebugModelComponent() }
+    
+    ///The Entity's position in world space. That is, relative to `nil`.
+    var worldPosition: simd_float3 {
+        get {
+            self.position(relativeTo: nil)
+        }
+        set {
+            self.setPosition(newValue, relativeTo: nil)
+        }
+    }
+    
+    func resetAllTransforms(){
+        self.visit(using: {$0.setTransformMatrix(float4x4.init(diagonal: [1,1,1,1]), relativeTo: self.parent)})
+    }
+    
+    ///Recursively searches (depth first) through all levels of parents for an Entity that satisfies the given predicate.
+    func findAncestor(where predicate: (Entity) -> Bool) -> Entity? {
+        guard let parent = parent else {return nil}
+        if predicate(parent) { return parent}
+        else { return parent.findAncestor(where: predicate) }
+    }
+    
+    ///Recursively searches (depth first) through self and all descendants for an Entity that satisfies the given predicate, Not just through the direct children.
+    func findEntity(where predicate: (Entity) -> Bool) -> Entity? {
+        if predicate(self) {return self}
+        for child in self.children {
+            if let satisfier = child.findEntity(where: predicate) {return satisfier}
+        }
+        return nil
+    }
+    
+    ///Recursively searches through self and all descendants for Entities that satisfy the given predicate, Not just through the direct children.
+    func findEntities(where predicate: (Entity) -> Bool) -> [Entity] {
+        var satisfyingEntities = [Entity]()
+        if predicate(self) { satisfyingEntities.append(self) }
+        for child in self.children {
+            satisfyingEntities.append(contentsOf: child.findEntities(where: predicate))
+        }
+        return satisfyingEntities
+    }
+    
+    ///Recursively searches (depth first) through each entity and its descendants in the given array for an Entity that satisfies the given predicate and returns the first one that is found.
+    static func findEntity(from entArray: [Entity], where predicate: (Entity) -> Bool) -> Entity? {
+        for parentEnt in entArray {
+            if let satisfyingEnt = parentEnt.findEntity(where: predicate) {
+                return satisfyingEnt
+            }
+        }
+        return nil
+    }
+    
+    ///Recursively searches through all descendants, depth first, for an Entity with a Model Component, Not just through the direct children.
+    ///
+    ///Returns the first model entity it finds.
+    ///Returns the orginal entity that called this method if it is a model entity.
+    func findFirstHasModelComponent() -> Entity? {
+        return findEntity(where: {$0.components.has(ModelComponent.self)})
+    }
+    
+    ///Recursively searches through all descendants, depth first, for Entities with a Model Component, Not just through the direct children.
+    ///
+    ///Returns all Entities it finds that have a Model Component.
+    ///The returned array includes the original entity that called this method if it is a model entity.
+    func findAllHasModelComponent() -> [Entity] {
+        return findEntities(where: {$0.components.has(ModelComponent.self)})
+    }
+    
+    ///Remove synchronization component to save memory when Not in a synchronized session.
+    func removeSynchronization(){
+        visit {
+            $0.components.remove(SynchronizationComponent.self)
+        }
+    }
+    
+    static func makeSphere(color: SimpleMaterial.Color = .blue,
+                            radius: Float = 0.05,
+                            isMetallic: Bool = true) -> ModelEntity {
+        
+        let sphereMesh = MeshResource.generateSphere(radius: radius)
+        let sphereMaterial = SimpleMaterial.init(color: color, isMetallic: isMetallic)
+        return ModelEntity(mesh: sphereMesh, materials: [sphereMaterial])
+    }
+    static func makeBox(color: SimpleMaterial.Color = .blue,
+                           size: simd_float3 = .one,
+                            isMetallic: Bool = true) -> ModelEntity {
+        
+        let boxMesh = MeshResource.generateBox(size: size)
+        let boxMaterial = SimpleMaterial.init(color: color, isMetallic: isMetallic)
+        return ModelEntity(mesh: boxMesh, materials: [boxMaterial])
+    }
+    
+    ///Recursively prints all children names and how many available animations they have.
+    func printAnimations(){
+        printAnimations(spacing: "")
+    }
+    private func printAnimations(spacing: String){
+        print(spacing, self.name, "Available animations:", self.availableAnimations.count)
+        //Use indentation to make the hierarchy easier to visualize.
+        let extendedSpacing = spacing + " "
+        for child in self.children {
+            child.printAnimations(spacing: extendedSpacing)
+        }
+    }
+    
+    ///Returns the first entity in the hierarchy that has an available animation, searching the entire hierarchy recursively.
+    func findAnim() -> Entity? {
+        return findEntity(where: {$0.availableAnimations.isEmpty == false})
+    }
+    
+    ///The x-rotation value of the entity, in radians.
+    var xRotation: Float {
+        //Extract the x-rotation value from the quaternion in radians.
+        get {
+            //Convert the value of the child's upward vector to its parent's coordinate space so we can compare this with the parent's upward vector later on.
+            var upward = self.convert(position: [0,0,-1], to: self.parent)
+            //Place the vector in the 2D Y-Z plane. i.e. Flatten it.
+            upward.x = 0
+            //Make the vector of length 1.
+            upward = normalize(upward)
+            //Compare the parent's upward vector with the flattened child's upward vector and extract the angle.
+            let yAngle = acos(dot([0,0,-1], upward))
+            return yAngle
+        }
+    }
+    
+        ///The y-rotation value of the entity, in radians.
+        var yRotation: Float {
+            //Extract the y-rotation value from the quaternion in radians.
+            get {
+                //Convert the value of the child's forward vector to its parent's coordinate space so we can compare this with the parent's forward vector later on.
+                var forward = self.convert(position: [0,0,-1], to: self.parent)
+                //Place the vector in the 2D X-Z plane. i.e. Flatten it.
+                forward.y = 0
+                //Make the vector of length 1.
+                forward = normalize(forward)
+                //Compare the parent's forward vector with the flattened child's forward vector and extract the angle.
+                let yAngle = acos(dot([0,0,-1], forward))
+                return yAngle
+            }
+        }
+    
+    ///The z-rotation value of the entity, in radians.
+    var zRotation: Float {
+        //Extract the z-rotation value from the quaternion in radians.
+        get {
+            //Convert the value of the child's upward vector to its parent's coordinate space so we can compare this with the parent's upward vector later on.
+            var upward = self.convert(position: [0,1,0], to: self.parent)
+            //Place the vector in the 2D X-Y plane. i.e. Flatten it.
+            upward.z = 0
+            //Make the vector of length 1.
+            upward = normalize(upward)
+            //Compare the parent's upward vector with the flattened child's upward vector and extract the angle.
+            let yAngle = acos(dot([0,1,0], upward))
+            return yAngle
+        }
     }
 }

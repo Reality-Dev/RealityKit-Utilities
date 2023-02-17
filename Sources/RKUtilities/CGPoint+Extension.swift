@@ -6,6 +6,7 @@ import CoreGraphics
 import simd
 import SceneKit
 
+// MARK: - CGPoint extensions
 public extension CGPoint {
 
     /// Extracts the screen space point from a vector returned by SCNView.projectPoint(_:).
