@@ -1,5 +1,5 @@
 /*
-See LICENSE folder for this sample’s licensing information.
+See the LICENSE file and the LICENSE ORIGINS folder for this sample’s licensing information.
  */
 
 import RealityKit
