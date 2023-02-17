@@ -44,13 +44,33 @@ public extension Entity {
         return self.convert(transform: .init(), to: nil)
     }
     
-    ///The Entity's position in world space. That is, relative to `nil`.
+    ///The Entity's position (a.k.a translation) in world space. That is, relative to `nil`.
     var worldPosition: simd_float3 {
         get {
             self.position(relativeTo: nil)
         }
         set {
             self.setPosition(newValue, relativeTo: nil)
+        }
+    }
+    
+    ///The Entity's scale in world space. That is, relative to `nil`.
+    var worldScale: simd_float3 {
+        get {
+            return scale(relativeTo: nil)
+        }
+        set {
+            self.setScale(newValue, relativeTo: nil)
+        }
+    }
+    
+    ///The Entity's rotation (a.k.a orientation) in world space. That is, relative to `nil`.
+    var worldRotation: simd_quatf {
+        get {
+            return orientation(relativeTo: nil)
+        }
+        set {
+            self.setOrientation(newValue, relativeTo: nil)
         }
     }
     
@@ -145,6 +165,37 @@ public extension Entity {
         for child in self.children {
             child.printAnimations(spacing: extendedSpacing)
         }
+    }
+    
+    enum TransformElement: String {
+        case position
+        case scale
+        case rotation
+        case all
+    }
+    func printTransform(for element: TransformElement){
+        printTransform(for: element, spacing: "")
+    }
+    private func printTransform(for element: TransformElement, spacing: String) {
+        var printableLocal: Any
+        var printableWorld: Any
+        switch element {
+        case .position:
+            printableLocal = self.position
+            printableWorld = self.position(relativeTo: nil)
+        case .scale:
+            printableLocal = self.scale
+            printableWorld = self.scale(relativeTo: nil)
+        case .rotation:
+            printableLocal = self.orientation
+            printableWorld = self.orientation(relativeTo: nil)
+        case .all:
+            printableLocal = self.transform
+            printableWorld = self.convert(transform: .init(), to: nil)
+        }
+        print(spacing, self.name, "local \(element.rawValue)", printableLocal)
+        print(spacing, self.name, "world \(element.rawValue)", printableWorld)
+        children.forEach {$0.printTransform(for: element, spacing: spacing + "  ")}
     }
     
     ///Returns the first entity in the hierarchy that has an available animation, searching the entire hierarchy recursively.

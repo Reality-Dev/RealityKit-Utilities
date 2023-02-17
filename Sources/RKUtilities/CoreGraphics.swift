@@ -69,6 +69,11 @@ public extension CGSize {
                       height: lhs.height * rhs)
     }
     
+    /// Returns the length of a point when considered as a vector.
+    var length: CGFloat {
+        return sqrt(width * width + height * height)
+    }
+    
     func distance(to otherPoint: CGSize) -> Float {
         let xDifference = otherPoint.width - self.width
         let xSquared = xDifference * xDifference
@@ -84,6 +89,7 @@ public extension CGSize {
 
 // MARK: - CGVector extensions
 public extension CGVector {
+    
     /// Returns the length of the vector. (Used with gesture recognizers.)
     var length: CGFloat {
         return sqrt(dx * dx + dy * dy)

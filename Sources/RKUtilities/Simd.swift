@@ -63,10 +63,12 @@ public extension Float {
 
 //MARK: - simd_float2 extensions
 public extension SIMD2 where Scalar == Float {
-    /// Returns the magnitude of the two points that comprise the 2d Vector
-    func magnitude() -> Float {
-        return sqrtf(x * x + y * y)
+    
+    func distance(from otherVect: Self) -> Float {
+        return simd_distance(self, otherVect)
     }
+
+    var length: Float { return simd.length(self) }
 
     var terseDescription: String { "\(x), \(y)" }
     var dotFourDescription: String { String(format: "(%0.4f, %0.4f)", x, y) }
@@ -377,20 +379,42 @@ public extension float4x4 {
                         SIMD4<Float>(position, w: 1.0))
     }
 
+    ///Values may be slightly imprecise due to Float rounding. If you need greater precision, use `double4x4` instead.
+    var near: Float {
+        return -columns.3[2] / columns.2[2]
+    }
+    
+    ///Values may be slightly imprecise due to Float rounding. If you need greater precision, use `double4x4` instead.
+    var far: Float {
+        return -columns.3[2] / (columns.2[2] - 1.0)
+    }
+
     var upVector: SIMD3<Float> {
-        return SIMD3<Float>(columns.1.x, columns.1.y, columns.1.z)
+        return normalize(columns.1.xyz)
     }
 
     var rightVector: SIMD3<Float> {
-        return SIMD3<Float>(columns.0.x, columns.0.y, columns.0.z)
+        return normalize(columns.0.xyz)
     }
 
     var forwardVector: SIMD3<Float> {
-        return SIMD3<Float>(-columns.2.x, -columns.2.y, -columns.2.z)
+        return normalize(-columns.2.xyz)
     }
 
     var position: SIMD3<Float> {
         return SIMD3<Float>(columns.3.x, columns.3.y, columns.3.z)
+    }
+}
+
+//MARK: - double4x4 extensions
+extension double4x4 {
+
+    var near: Double {
+        return -columns.3[2] / columns.2[2]
+    }
+    
+    var far: Double {
+        return -columns.3[2] / (columns.2[2] - 1.0)
     }
 }
 
@@ -401,14 +425,14 @@ public extension Transform {
     }
 
     var upVector: SIMD3<Float> {
-        return normalize(matrix.columns.1.xyz)
+        return matrix.upVector
     }
 
     var rightVector: SIMD3<Float> {
-        return normalize(matrix.columns.0.xyz)
+        return matrix.rightVector
     }
 
     var forwardVector: SIMD3<Float> {
-        return normalize(-matrix.columns.2.xyz)
+        return matrix.forwardVector
     }
 }
