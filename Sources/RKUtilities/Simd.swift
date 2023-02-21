@@ -41,7 +41,14 @@ public extension Float {
     }
     
     /// Return the constant needed to convert degrees to radians
-    static let degreesToRadians: Float = (.pi / 180)
+    static func degreesToRadians(_ degrees: Float) -> Float {
+        return degrees * (.pi / 180)
+    }
+    
+    /// Return the constant needed to convert degrees to radians
+    static func radiansToDegrees(_ radians: Float) -> Float {
+        return radians * (180 / .pi)
+    }
 
     /// Return the linear interpolation between two values at supplied "progress"
     static func lerp(_ value1: Float, _ value2: Float, progress: Float) -> Float {
@@ -104,6 +111,8 @@ public extension SIMD3 where Scalar == Float {
     static var roll: simd_float3 = [0, 0, 1]
     
     static var up: simd_float3 = [0, 1, 0]
+    
+    static var down: simd_float3 = [0, -1, 0]
     
     static var forward: simd_float3 = [0, 0, -1]
     

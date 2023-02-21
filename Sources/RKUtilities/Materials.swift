@@ -136,7 +136,7 @@ extension CustomMaterial: HasOpacity {
 
         do {
             try self.init(surfaceShader: surfaceShader,
-                                  geometryModifier: nil,
+                                  geometryModifier: geometryModifier,
                           lightingModel: lightingModel)
         } catch {
             print(error)
