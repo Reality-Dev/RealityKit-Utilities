@@ -18,11 +18,23 @@ public extension Entity {
         return self.visualBounds(recursive: true, relativeTo: nil, excludeInactive: !includingInactive).extents
     }
     
+    /*
+     Example Usage:
+     
+     let modelComp = self.component(forType: ModelComponent.self)
+     */
     ///There can only be up to one of each type of component in the Entity's ComponentSet.
     func component<T: Component>(forType: T.Type) -> T? {
         return self.components[T.self] as? T
     }
     
+    /*
+     Example Usage:
+     
+     myEntity.modifyComponent(forType: ModelComponent.self){
+         $0.materials = $0.materials.map({$0.setOpacity(0.5)})
+     }
+     */
     ///Components are value types so we must re-set them on the Entity every time they are modified. This method takes care of re-setting them for us.
     func modifyComponent<T: Component>(forType: T.Type, _ closure: ( inout T) -> Void) {
         

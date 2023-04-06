@@ -9,10 +9,49 @@ import ARKit
 
 // MARK: - ARPlaneAnchor extensions
 extension ARPlaneAnchor {
+    ///Convert from ARKit alignment to RealityKit alignment.
+    public var targetAlignment: AnchoringComponent.Target.Alignment {
+        switch self.alignment {
+        case .horizontal:
+            return .horizontal
+        case .vertical:
+            return .vertical
+        @unknown default:
+            return .any
+        }
+    }
+    
     func correspondingAnchorEntity(scene: Scene) -> AnchorEntity? {
         return scene.anchors.first(where: {$0.anchorIdentifier == self.identifier}) as? AnchorEntity
     }
+    
+    var isOnCeiling: Bool {
+        // Using the provided Entity did Not work. Its world position was always 0,0,0. So we make a new one.
+        let ceilingCheckerEntity = Entity()
+        ceilingCheckerEntity.transform.matrix = self.transform
+        // Make sure this anchor is Not on the ceiling.
+        let up = ceilingCheckerEntity.convert(position: [0, 1, 0], to: nil).y
+        let anchorY = ceilingCheckerEntity.position.y
+        guard (up - anchorY) > -0.5 else {
+            return true
+        }
+        return false
+    }
 }
+
+extension ARPlaneAnchor.Alignment: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .horizontal:
+            return "horiztonal"
+        case .vertical:
+            return "vertical"
+        @unknown default:
+            return "unknown"
+        }
+    }
+}
+
 
 // MARK: - AnchorEntity extensions
 public extension AnchorEntity {
