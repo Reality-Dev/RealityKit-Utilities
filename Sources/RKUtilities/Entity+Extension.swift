@@ -173,6 +173,17 @@ public extension Entity {
         let boxMaterial = SimpleMaterial.init(color: color, isMetallic: isMetallic)
         return ModelEntity(mesh: boxMesh, materials: [boxMaterial])
     }
+    static func makePlane(color: SimpleMaterial.Color = .blue,
+                          isMetallic: Bool = true,
+                          width: Float = 1,
+                          height: Float = 1,
+                          cornerRadius: Float = 0) -> ModelEntity
+    {
+        let planeMesh = MeshResource.generatePlane(width: width, height: height, cornerRadius: cornerRadius)
+        let planeMaterial = SimpleMaterial(color: color, isMetallic: isMetallic)
+        return ModelEntity(mesh: planeMesh,
+                           materials: [planeMaterial])
+    }
     
     ///Returns the first entity in the hierarchy that has an available animation, searching the entire hierarchy recursively.
     func findAnim() -> Entity? {
