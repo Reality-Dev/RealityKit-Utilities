@@ -3,6 +3,14 @@ See the LICENSE file and the LICENSE ORIGINS folder for this sample’s licensin
  */
 
 import RealityKit
+import CoreMedia
+
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
+
 
 // MARK: - Entity extensions
 public extension Entity {
@@ -166,6 +174,29 @@ public extension Entity {
         return ModelEntity(mesh: boxMesh, materials: [boxMaterial])
     }
     
+    ///Returns the first entity in the hierarchy that has an available animation, searching the entire hierarchy recursively.
+    func findAnim() -> Entity? {
+        return findEntity(where: {$0.availableAnimations.isEmpty == false})
+    }
+    
+    ///Find the first descendant (or this entity if it has a(n) animation(s)) with an animation and play it.
+    @available(macOS 12.0, iOS 15.0, *)
+    @discardableResult func playFirstAnimation(transitionDuration: TimeInterval = 0,
+                                               blendLayerOffset: Int = 0,
+                                               separateAnimatedValue: Bool = false,
+                                               startsPaused: Bool = false,
+                                               clock: CMClockOrTimebase? = nil) -> AnimationPlaybackController?
+    {
+        guard let animEntity = findAnim() else { return nil }
+        let animation = animEntity.availableAnimations[0].repeat(duration: .infinity)
+        return animEntity.playAnimation(animation,
+                             transitionDuration: transitionDuration,
+                             blendLayerOffset: blendLayerOffset,
+                             separateAnimatedValue: separateAnimatedValue,
+                             startsPaused: startsPaused,
+                             clock: clock)
+    }
+    
     ///Recursively prints all children names and how many available animations they have.
     func printAnimations(){
         printAnimations(spacing: "")
@@ -208,11 +239,6 @@ public extension Entity {
         print(spacing, self.name, "local \(element.rawValue)", printableLocal)
         print(spacing, self.name, "world \(element.rawValue)", printableWorld)
         children.forEach {$0.printTransform(for: element, spacing: spacing + "  ")}
-    }
-    
-    ///Returns the first entity in the hierarchy that has an available animation, searching the entire hierarchy recursively.
-    func findAnim() -> Entity? {
-        return findEntity(where: {$0.availableAnimations.isEmpty == false})
     }
     
     ///The x-rotation value of the entity, in radians.
