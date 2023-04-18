@@ -7,6 +7,20 @@ import RealityKit
 #if canImport(ARKit)
 import ARKit
 
+// MARK: - ARCamera extensions
+public extension ARCamera {
+    /*
+     For `ARCamera.transform`:
+     The X-axis always points along the long axis of the device, from the front-facing camera toward the Home button. The y-axis points upward (with respect to UIDeviceOrientation.landscapeRight orientation), and the z-axis points away from the device on the screen side.
+     Therefore in portrait mode, a transformation is required to generate the expected matrix (+Y-up).
+     */
+    ///When the device is in `UIDeviceOrientation.portrait` this property represents the transform of the camera with +Y up, +X to the right and -Z to the front.
+    var portraitTransform: simd_float4x4 {
+        let orientationShift = simd_quatf(angle: .pi / 2, axis: .roll)
+        return simd_mul(self.transform, matrix_float4x4(orientationShift))
+    }
+}
+
 // MARK: - ARPlaneAnchor extensions
 extension ARPlaneAnchor {
     ///Convert from ARKit alignment to RealityKit alignment.

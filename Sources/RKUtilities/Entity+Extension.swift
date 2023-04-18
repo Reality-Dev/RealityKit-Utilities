@@ -191,6 +191,8 @@ public extension Entity {
     }
     
     ///Find the first descendant (or this entity if it has a(n) animation(s)) with an animation and play it.
+    ///
+    ///IMPORTANT: Does not work with a loaded `ModelEntity`, only works when loading a file as an `Entity`.
     @available(macOS 12.0, iOS 15.0, *)
     @discardableResult func playFirstAnimation(transitionDuration: TimeInterval = 0,
                                                blendLayerOffset: Int = 0,
