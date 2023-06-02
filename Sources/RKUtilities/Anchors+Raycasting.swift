@@ -22,7 +22,7 @@ public extension ARCamera {
 }
 
 // MARK: - ARAnchor extensions
-extension ARAnchor {
+public extension ARAnchor {
     func isOnScreen(
         arView: ARView,
         bounds: CGRect,
@@ -39,9 +39,9 @@ extension ARAnchor {
 }
 
 // MARK: - ARPlaneAnchor extensions
-extension ARPlaneAnchor {
+public extension ARPlaneAnchor {
     ///Convert from ARKit alignment to RealityKit alignment.
-    public var targetAlignment: AnchoringComponent.Target.Alignment {
+    var targetAlignment: AnchoringComponent.Target.Alignment {
         switch self.alignment {
         case .horizontal:
             return .horizontal

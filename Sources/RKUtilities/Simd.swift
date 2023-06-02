@@ -261,7 +261,7 @@ public extension float4x4 {
     ///Note: This only works if this transform is relative to nil, otherwise it converts to the parent Entity's coordinate space.
     func convertPositionToWorldSpace(_ inputPosition: simd_float3) -> simd_float3 {
         // Convert the positions from local anchor-space coordinates to world coordinates.
-        var centerLocalTransform = simd_float4x4(translation: inputPosition)
+        let centerLocalTransform = simd_float4x4(translation: inputPosition)
         let centerWorldPosition = (self * centerLocalTransform).translation
         return centerWorldPosition
     }
@@ -415,11 +415,11 @@ public extension float4x4 {
 //MARK: - double4x4 extensions
 extension double4x4 {
 
-    var near: Double {
+    public var near: Double {
         return -columns.3[2] / columns.2[2]
     }
     
-    var far: Double {
+    public var far: Double {
         return -columns.3[2] / (columns.2[2] - 1.0)
     }
 }

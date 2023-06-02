@@ -123,7 +123,7 @@ extension CustomMaterial: HasOpacity {
             self.blending.opacity = newValue
         }
     }
-    init?(surfaceShaderName: String,
+    public init?(surfaceShaderName: String,
           geometryModifier: CustomMaterial.GeometryModifier? = nil,
           lightingModel: CustomMaterial.LightingModel = .lit,
           library: MTLLibrary
