@@ -25,11 +25,9 @@ public extension UIView {
     }
     
     func removeWithFade(duration: TimeInterval = 1.0){
-        fadeOut(duration: duration){ finished in
-            if finished {
-                self.isHidden = true
-                self.removeFromSuperview()
-            }
+        fadeOut(duration: duration){
+            self.isHidden = true
+            self.removeFromSuperview()
         }
     }
     
@@ -37,12 +35,13 @@ public extension UIView {
     Fade in a view with a duration
     - parameter duration: custom animation duration
     */
-    func fadeIn(duration: TimeInterval = 1.0) {
+    func fadeIn(duration: TimeInterval = 1.0, completion: (() -> Void)? = nil) {
+        self.isHidden = false
      UIView.animate(withDuration: duration, animations: {
          self.alpha = 1.0
      },  completion: { finished in
          if finished {
-             self.isHidden = false
+             completion?()
              }
          })
      }
@@ -51,12 +50,13 @@ public extension UIView {
    Fade out a view with a duration
    - parameter duration: custom animation duration
    */
-    func fadeOut(duration: TimeInterval = 1.0, completion: ((Bool) -> Void)? = nil) {
+    func fadeOut(duration: TimeInterval = 1.0, completion: (() -> Void)? = nil) {
      UIView.animate(withDuration: duration, animations: {
          self.alpha = 0.0
      },  completion: { finished in
-         if let completion = completion {
-             completion(finished)
+         if finished {
+             // Could be a good place to set `isHidden` to true
+             completion?()
              }
          })
      }
