@@ -35,8 +35,8 @@ import ARKit
 import Combine
 import Foundation
 
-class ARSessionPublisher: NSObject, ARSessionDelegate {
-    weak var session: ARSession?
+public class ARSessionPublisher: NSObject, ARSessionDelegate {
+    public weak var session: ARSession?
 
     public let addedAnchorsPublisher = PassthroughSubject<[ARAnchor], Never>()
     
@@ -46,25 +46,25 @@ class ARSessionPublisher: NSObject, ARSessionDelegate {
 
     public let updatedFramePublisher = PassthroughSubject<ARFrame, Never>()
 
-    init(session: ARSession) {
+    public init(session: ARSession) {
         self.session = session
         super.init()
         session.delegate = self
     }
 
-    func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
+    public func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         addedAnchorsPublisher.send(anchors)
     }
 
-    func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
+    public func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         updatedAnchorsPublisher.send(anchors)
     }
 
-    func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
+    public func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
         removedAnchorsPublisher.send(anchors)
     }
 
-    func session(_ session: ARSession, didUpdate frame: ARFrame) {
+    public func session(_ session: ARSession, didUpdate frame: ARFrame) {
         updatedFramePublisher.send(frame)
     }
 }
