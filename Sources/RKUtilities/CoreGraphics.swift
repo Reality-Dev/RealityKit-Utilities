@@ -45,6 +45,20 @@ public extension CGPoint {
         return CGPoint(x: lhs.x + rhs.width,
                        y: lhs.y + rhs.height)
     }
+
+    static func * (lhs: CGPoint, rhs: CGFloat) -> CGPoint {
+        return CGPoint(x: lhs.x * rhs,
+                       y: lhs.y * rhs)
+    }
+
+    static func / (lhs: CGPoint, rhs: CGFloat) -> CGPoint {
+        return CGPoint(x: lhs.x / rhs,
+                       y: lhs.y / rhs)
+    }
+
+    func convertVisionToAVFoundation() -> CGPoint {
+        return CGPoint(x: x, y: 1 - y)
+    }
 }
 
 // MARK: - CGSize extensions
