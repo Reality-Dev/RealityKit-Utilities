@@ -208,6 +208,21 @@ public extension simd_quatf {
     
     /// The identity quaternion
     static let identity = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
+    
+    static func lookAt(target: SIMD3<Float>, from: SIMD3<Float>, worldUp: SIMD3<Float> = .up) -> simd_quatf {
+        let direction = normalize(from - target)
+        let right = normalize(cross(worldUp, direction))
+        let up = cross(direction, right)
+        
+        let matrix = float4x4(
+            SIMD4<Float>(right.x, right.y, right.z, 0),
+            SIMD4<Float>(up.x, up.y, up.z, 0),
+            SIMD4<Float>(direction.x, direction.y, direction.z, 0),
+            SIMD4<Float>(0, 0, 0, 1)
+        )
+        
+        return simd_quatf(matrix)
+    }
 }
 
 
