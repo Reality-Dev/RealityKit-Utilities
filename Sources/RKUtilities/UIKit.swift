@@ -5,12 +5,14 @@ See the LICENSE file and the LICENSE ORIGINS folder for this sample’s licensin
 #if canImport(UIKit)
 import UIKit
 
+#if os(iOS)
 // MARK: - UIScreen extensions
-public extension UIScreen{
+public extension UIScreen {
     static let screenWidth = UIScreen.main.bounds.size.width
     static let screenHeight = UIScreen.main.bounds.size.height
     static let screenSize = UIScreen.main.bounds.size
 }
+#endif
 
 // MARK: - UIView extensions
 public extension UIView {

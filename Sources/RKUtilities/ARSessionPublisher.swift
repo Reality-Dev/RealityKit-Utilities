@@ -51,6 +51,8 @@ public class ARSessionPublisher: NSObject, ARSessionDelegate {
         super.init()
         session.delegate = self
     }
+    
+    // TODO: implement sessionWasInterrupted(_ session: ARSession)
 
     public func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         addedAnchorsPublisher.send(anchors)

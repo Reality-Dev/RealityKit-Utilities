@@ -33,10 +33,12 @@ public extension Entity {
         components[ModelComponent.self] = comp
     }
 
+#if !os(visionOS)
     @available(iOS 15.0, macOS 12.0, *)
     func set(_ modifier: CustomMaterial.GeometryModifier) throws {
         try modifyMaterials { try CustomMaterial(from: $0, geometryModifier: modifier) }
     }
+#endif
 
     @available(iOS 14.0, macOS 11.0, *)
     func attachDebugModelComponent(_ debugModel: ModelDebugOptionsComponent) {
@@ -112,6 +114,7 @@ public extension PhysicallyBasedMaterial.Blending {
     }
 }
 
+#if !os(visionOS)
 //We could initialize a CustomMaterial.Blending from a PhysicallyBasedMaterial.Blending and re-use the same code, but we duplicate it here to save the performance cost of initialization, which may be especially useful in cases such as opacity animations.
 @available(iOS 15.0, macOS 12.0, *)
 extension CustomMaterial: HasOpacity {
@@ -173,6 +176,7 @@ public extension CustomMaterial.Blending {
         }
     }
 }
+#endif
 
 @available(iOS 15.0, macOS 12.0, *)
 public extension RealityKit.Material {

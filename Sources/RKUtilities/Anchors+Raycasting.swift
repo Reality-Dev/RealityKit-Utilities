@@ -4,7 +4,7 @@ See the LICENSE file and the LICENSE ORIGINS folder for this sample’s licensin
 
 import RealityKit
 
-#if canImport(ARKit)
+#if canImport(ARKit) && os(iOS)
 import ARKit
 
 // MARK: - ARCamera extensions

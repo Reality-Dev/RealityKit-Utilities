@@ -48,9 +48,9 @@ public extension Float {
         return radians * (180 / .pi)
     }
 
-    /// Return the linear interpolation between two values at supplied "progress"
-    static func lerp(_ value1: Float, _ value2: Float, progress: Float) -> Float {
-        return value1 + ((value2 - value1) * progress)
+    /// Return the linear interpolation between two values at progress represented by the `t` value.
+    static func lerp(_ value1: Float, _ value2: Float, t: Float) -> Float {
+        return value1 + ((value2 - value1) * t)
     }
 
     /// Returns the "progress" value that yields the lerp output value within the range [value1, value2]

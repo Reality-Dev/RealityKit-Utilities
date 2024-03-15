@@ -7,7 +7,7 @@ import CoreMedia
 
 #if os(macOS)
 import AppKit
-#elseif os(iOS)
+#elseif os(iOS) || os(visionOS)
 import UIKit
 #endif
 
@@ -98,6 +98,7 @@ public extension Entity {
         self.visit(using: {$0.setTransformMatrix(float4x4.init(diagonal: [1,1,1,1]), relativeTo: self.parent)})
     }
     
+#if !os(visionOS)
     func isOnScreen(
         arView: ARView,
         bounds: CGRect,
@@ -111,6 +112,7 @@ public extension Entity {
         let inBounds = width.contains(screenPosition.x) && height.contains(screenPosition.y)
         return inBounds
     }
+#endif
     
     ///Recursively searches (depth first) through all levels of parents for an Entity that satisfies the given predicate.
     func findAncestor(where predicate: (Entity) -> Bool) -> Entity? {
