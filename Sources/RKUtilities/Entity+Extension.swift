@@ -281,8 +281,8 @@ public extension Entity {
             //Make the vector of length 1.
             upward = normalize(upward)
             //Compare the parent's upward vector with the flattened child's upward vector and extract the angle.
-            let yAngle = acos(dot([0,0,-1], upward))
-            return yAngle
+            let xAngle = acos(dot([0,0,-1], upward))
+            return xAngle.isNaN ? 0 : xAngle
         }
     }
     
@@ -298,7 +298,7 @@ public extension Entity {
                 forward = normalize(forward)
                 //Compare the parent's forward vector with the flattened child's forward vector and extract the angle.
                 let yAngle = acos(dot([0,0,-1], forward))
-                return yAngle
+                return yAngle.isNaN ? 0 : yAngle
             }
         }
     
@@ -313,8 +313,8 @@ public extension Entity {
             //Make the vector of length 1.
             upward = normalize(upward)
             //Compare the parent's upward vector with the flattened child's upward vector and extract the angle.
-            let yAngle = acos(dot([0,1,0], upward))
-            return yAngle
+            let zAngle = acos(dot([0,1,0], upward))
+            return zAngle.isNaN ? 0 : zAngle
         }
     }
 }

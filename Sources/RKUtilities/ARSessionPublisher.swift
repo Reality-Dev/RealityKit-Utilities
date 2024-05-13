@@ -35,39 +35,107 @@ import ARKit
 import Combine
 import Foundation
 
+@available(iOS 14.0, *)
 public class ARSessionPublisher: NSObject, ARSessionDelegate {
     public weak var session: ARSession?
-
-    public let addedAnchorsPublisher = PassthroughSubject<[ARAnchor], Never>()
     
-    public let updatedAnchorsPublisher = PassthroughSubject<[ARAnchor], Never>()
+    public let addedAnchors = PassthroughSubject<[ARAnchor], Never>()
     
-    public let removedAnchorsPublisher = PassthroughSubject<[ARAnchor], Never>()
-
-    public let updatedFramePublisher = PassthroughSubject<ARFrame, Never>()
-
-    public init(session: ARSession) {
+    public let updatedAnchors = PassthroughSubject<[ARAnchor], Never>()
+    
+    public let removedAnchors = PassthroughSubject<[ARAnchor], Never>()
+    
+    public let updatedFrame = PassthroughSubject<ARFrame, Never>()
+    
+    public let cameraTrackingState = PassthroughSubject<ARCamera, Never>()
+    
+    public let geoTrackingStatus = PassthroughSubject<ARGeoTrackingStatus, Never>()
+    
+    public let sessionWasInterrupted = PassthroughSubject<ARSession, Never>()
+    
+    public let sessionInterruptionEnded = PassthroughSubject<ARSession, Never>()
+    
+    public let audioSampleBufferOutput = PassthroughSubject<CMSampleBuffer, Never>()
+    
+    public let sessionFailure = PassthroughSubject<Error, Never>()
+    
+    public let collaborationDataOutput = PassthroughSubject<ARSession.CollaborationData, Never>()
+    
+    public var shouldSessionAttemptRelocalization: (@Sendable (ARSession) -> Bool)?
+    
+    public init(session: ARSession,
+                shouldSessionAttemptRelocalization: (@Sendable (ARSession) -> Bool)? = nil) {
         self.session = session
+        self.shouldSessionAttemptRelocalization = shouldSessionAttemptRelocalization
         super.init()
         session.delegate = self
     }
     
-    // TODO: implement sessionWasInterrupted(_ session: ARSession)
-
+    // MARK: - ARSessionDelegate
+    
     public func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
-        addedAnchorsPublisher.send(anchors)
+        addedAnchors.send(anchors)
     }
-
+    
     public func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
-        updatedAnchorsPublisher.send(anchors)
+        updatedAnchors.send(anchors)
     }
-
+    
     public func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
-        removedAnchorsPublisher.send(anchors)
+        removedAnchors.send(anchors)
     }
-
+    
     public func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        updatedFramePublisher.send(frame)
+        updatedFrame.send(frame)
+    }
+    
+    // MARK: - ARSessionObserver
+    
+    public func session(
+        _ session: ARSession,
+        cameraDidChangeTrackingState camera: ARCamera
+    ) {
+        cameraTrackingState.send(camera)
+    }
+    
+    public func session(
+        _ session: ARSession,
+        didChange geoTrackingStatus: ARGeoTrackingStatus
+    ) {
+        self.geoTrackingStatus.send(geoTrackingStatus)
+    }
+    
+    public func sessionWasInterrupted(_ session: ARSession) {
+        sessionWasInterrupted.send(session)
+    }
+    
+    public func sessionInterruptionEnded(_ session: ARSession) {
+        sessionInterruptionEnded.send(session)
+    }
+    
+    public func sessionShouldAttemptRelocalization(_ session: ARSession) -> Bool {
+        return shouldSessionAttemptRelocalization?(session) ?? true
+    }
+    
+    public func session(
+        _ session: ARSession,
+        didOutputAudioSampleBuffer audioSampleBuffer: CMSampleBuffer
+    ) {
+        audioSampleBufferOutput.send(audioSampleBuffer)
+    }
+    
+    public func session(
+        _ session: ARSession,
+        didFailWithError error: Error
+    ) {
+        sessionFailure.send(error)
+    }
+    
+    public func session(
+        _ session: ARSession,
+        didOutputCollaborationData data: ARSession.CollaborationData
+    ) {
+        collaborationDataOutput.send(data)
     }
 }
 

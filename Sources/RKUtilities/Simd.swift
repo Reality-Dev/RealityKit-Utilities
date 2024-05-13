@@ -281,6 +281,14 @@ public extension float4x4 {
         return centerWorldPosition
     }
     
+    func convertPositionToLocalSpace(_ inputPosition: simd_float3) -> simd_float3 {
+        // Assuming `self` is a transformation matrix that has been used to convert to world space,
+        // its inverse will convert positions from world coordinates back to local anchor-space coordinates.
+        let worldToLocalTransform = self.inverse
+        let positionLocal = (worldToLocalTransform * simd_float4(inputPosition, 1)).xyz
+        return positionLocal
+    }
+    
     ///Linearly interpolates between x and y, taking the value x when t=0 and y when t=1
     static func mix(x: float4x4, y: float4x4, t: Float) -> float4x4 {
         var newTransform = simd_float4x4(diagonal: [1,1,1,1])
