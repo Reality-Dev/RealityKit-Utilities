@@ -94,6 +94,12 @@ extension ShapeResource {
         return try await generateStaticMesh(positions: geom.vertices,
                                             faceIndices: geom.faceIndices16)
     }
+    
+    nonisolated static func generateStaticMesh(
+        from planeAnchor: any HasPlaneGeometry
+    ) async throws -> ShapeResource {
+        try await generateStaticMesh(from: planeAnchor.geometry)
+    }
 }
 
 // MARK: - Convenience Methods
