@@ -170,6 +170,7 @@ public protocol GeometricSource {
     var stride: Int { get }
 }
 
+public
 extension GeometricSource {
     func asArray<T>(ofType: T.Type) -> [T] {
         //!! Needs to be on main?

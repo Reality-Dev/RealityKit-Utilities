@@ -96,6 +96,7 @@ internal enum UVGeneratorFactory {
 // MARK: - UV Generation
 
 @available(iOS 18.0, *)
+@available(visionOS 1.0, *)
 @MainActor
 public extension MeshResource {
 

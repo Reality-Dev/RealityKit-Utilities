@@ -15,6 +15,7 @@ public extension PlaneExtent {
 }
 
 @available(iOS 18.0, *)
+@available(visionOS 1.0, *)
 @MainActor
 public extension MeshResource {
     
@@ -81,6 +82,7 @@ public extension MeshResource {
 
 // While this compiles on iOS 17, this is a bug from Apple, and will crash on anything below iOS 18.
 @available(iOS 18.0, *)
+@available(visionOS 1.0, *)
 @MainActor
 public extension ShapeResource {
     

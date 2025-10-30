@@ -1,6 +1,7 @@
 import RealityKit
 import Accelerate
 
+public
 extension MeshGeometry {
     func vertex(at index: UInt32) -> (Float, Float, Float) {
         assert(vertices.format == MTLVertexFormat.float3, "Expected three floats (twelve bytes) per vertex.")
