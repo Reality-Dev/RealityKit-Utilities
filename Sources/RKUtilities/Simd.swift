@@ -292,6 +292,16 @@ public extension float4x4 {
         }
     }
     
+    @available(*, deprecated, message: "Use convertPositionToParentSpace(_:) instead.")
+    func convertPositionToWorldSpace(_ inputPosition: simd_float3) -> simd_float3 {
+        toParentSpacePosition(inputPosition)
+    }
+    
+    @available(*, deprecated, message: "Use convertPositionFromParentSpace(_:) instead.")
+    func convertPositionToLocalSpace(_ inputPosition: simd_float3) -> simd_float3 {
+        fromParentSpacePosition(inputPosition)
+    }
+    
     /// Converts a position from this transform’s coordinate space into its parent’s coordinate space.
     func toParentSpacePosition(_ position: simd_float3) -> simd_float3 {
         let localTransform = simd_float4x4(translation: position)
