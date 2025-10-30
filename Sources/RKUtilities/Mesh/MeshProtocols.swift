@@ -1,6 +1,27 @@
 import ARKit
 import RealityKit
 
+// MARK: - HasMesh
+public protocol HasMeshGeometry {
+    associatedtype RKGeometry: MeshGeometry
+    
+    var geometry: RKGeometry { get }
+}
+
+public protocol HasPlaneGeometry {
+    associatedtype RKGeometry: PlaneGeometry
+    
+    var geometry: RKGeometry { get }
+}
+
+#if os(visionOS)
+extension MeshAnchor: HasMeshGeometry {}
+extension PlaneAnchor: HasPlaneGeometry {}
+#elseif os(iOS)
+extension ARMeshAnchor: HasMeshGeometry {}
+extension ARPlaneAnchor: HasPlaneGeometry {}
+#endif
+
 #if os(visionOS)
 // MARK: - Protocol Conformance visionOS
 

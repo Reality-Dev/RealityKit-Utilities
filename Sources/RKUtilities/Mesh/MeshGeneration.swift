@@ -1,3 +1,4 @@
+import ARKit
 import RealityKit
 
 @MainActor
@@ -84,12 +85,32 @@ public extension MeshResource {
 @available(iOS 18.0, *)
 @available(visionOS 1.0, *)
 @MainActor
-public extension ShapeResource {
+public
+extension ShapeResource {
     
     nonisolated static func generateStaticMesh(
         from geom: PlaneGeometry
     ) async throws -> ShapeResource {
         return try await generateStaticMesh(positions: geom.vertices,
                                             faceIndices: geom.faceIndices16)
+    }
+}
+
+// MARK: - Convenience Methods
+@available(iOS 18.0, *)
+@available(visionOS 1.0, *)
+@MainActor
+public
+extension MeshResource {
+    nonisolated static func generate(
+        from planeAnchor: any HasPlaneGeometry
+    ) async throws -> MeshResource {
+        try await generate(from: planeAnchor.geometry)
+    }
+    
+    nonisolated static func generate(
+        from meshAnchor: any HasMeshGeometry
+    ) async throws -> MeshResource {
+        try await generate(from: meshAnchor.geometry)
     }
 }
