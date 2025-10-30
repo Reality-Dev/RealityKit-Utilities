@@ -8,11 +8,6 @@ extension MeshAnchor.MeshClassification: MeshClassification {}
 
 extension MeshAnchor.Geometry: MeshGeometry {
     public typealias Source = GeometrySource
-    /// To get the mesh's classification, the sample app parses the classification's raw data and instantiates an
-    /// `ARMeshClassification` object. For efficiency, ARKit stores classifications in a Metal buffer in `ARMeshGeometry`.
-    func classificationOf(faceWithIndex index: Int) -> MeshAnchor.MeshClassification {
-        classificationOf(faceWithIndex: index, of: MeshAnchor.MeshClassification.self) ?? .none
-    }
 }
 
 extension GeometrySource: GeometricSource {}
@@ -63,15 +58,9 @@ extension PlaneAnchor.Geometry: PlaneGeometry {
 extension ARMeshGeometry: MeshGeometry {
     
     public typealias Source = ARGeometrySource
-    // !! Potential performance cost with existential type (any Keyword).
-    // Use Generics instead.
+    
     public var classifications: ARGeometrySource? {
         return classification
-    }
-    /// To get the mesh's classification, the sample app parses the classification's raw data and instantiates an
-    /// `ARMeshClassification` object. For efficiency, ARKit stores classifications in a Metal buffer in `ARMeshGeometry`.
-    func classificationOf(faceWithIndex index: Int) -> ARMeshClassification {
-        classificationOf(faceWithIndex: index, of: ARMeshClassification.self) ?? .none
     }
 }
 

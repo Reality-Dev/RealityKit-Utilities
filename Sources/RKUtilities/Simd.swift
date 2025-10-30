@@ -317,7 +317,7 @@ public extension float4x4 {
         return newTransform
     }
 }
-extension float4x4: CustomStringConvertible {
+extension float4x4: @retroactive CustomStringConvertible {
     ///Calling print(myMatrix) prints the *columns* one after another, horizontally. This function allows us to visualize the actual matrix with the columns laid out vertically and the rows laid out horizontally.
     /// - Values are rounded to the nearest hundredths place to keep columns and rows aligned visually.
     public var description: String {

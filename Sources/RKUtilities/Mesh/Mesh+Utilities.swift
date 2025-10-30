@@ -1,5 +1,29 @@
-import RealityKit
 import Accelerate
+import ARKit
+import RealityKit
+
+#if os(visionOS)
+public
+extension MeshAnchor.Geometry {
+    /// To get the mesh's classification, the sample app parses the classification's raw data and instantiates an
+    /// `ARMeshClassification` object. For efficiency, ARKit stores classifications in a Metal buffer in `ARMeshGeometry`.
+    func classificationOf(faceWithIndex index: Int) -> MeshAnchor.MeshClassification {
+        classificationOf(faceWithIndex: index, of: MeshAnchor.MeshClassification.self) ?? .none
+    }
+}
+#endif
+
+#if os(iOS)
+public
+extension ARMeshGeometry {
+    /// To get the mesh's classification, the sample app parses the classification's raw data and instantiates an
+    /// `ARMeshClassification` object. For efficiency, ARKit stores classifications in a Metal buffer in `ARMeshGeometry`.
+    func classificationOf(faceWithIndex index: Int) -> ARMeshClassification {
+        classificationOf(faceWithIndex: index, of: ARMeshClassification.self) ?? .none
+    }
+}
+#endif
+
 
 public
 extension MeshGeometry {
