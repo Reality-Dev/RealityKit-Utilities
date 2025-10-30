@@ -292,12 +292,12 @@ public extension float4x4 {
         }
     }
     
-    @available(*, deprecated, message: "Use convertPositionToParentSpace(_:) instead.")
+    @available(*, deprecated, message: "Use toParentSpacePosition(_:) instead.")
     func convertPositionToWorldSpace(_ inputPosition: simd_float3) -> simd_float3 {
         toParentSpacePosition(inputPosition)
     }
     
-    @available(*, deprecated, message: "Use convertPositionFromParentSpace(_:) instead.")
+    @available(*, deprecated, message: "Use fromParentSpacePosition(_:) instead.")
     func convertPositionToLocalSpace(_ inputPosition: simd_float3) -> simd_float3 {
         fromParentSpacePosition(inputPosition)
     }
