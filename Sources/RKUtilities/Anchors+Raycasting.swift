@@ -52,6 +52,31 @@ public extension ARPlaneAnchor {
         }
     }
     
+    ///Convert from ARKit classification to RealityKit classification.
+    var targetClassification: AnchoringComponent.Target.Classification {
+        switch self.classification {
+        case .none:
+                .any
+        case .wall:
+                .wall
+        case .floor:
+                .floor
+        case .ceiling:
+                .ceiling
+        case .table:
+                .table
+        case .seat:
+                .seat
+        case .window:
+                .any // Window is not available in RealityKit.
+        case .door:
+                .any // Door is not available in RealityKit.
+        @unknown default:
+            // assertionFailure("Unknown case")
+                .any
+        }
+    }
+    
     func correspondingAnchorEntity(scene: Scene) -> AnchorEntity? {
         return scene.anchors.first(where: {$0.anchorIdentifier == self.identifier}) as? AnchorEntity
     }
@@ -70,7 +95,7 @@ public extension ARPlaneAnchor {
     }
 }
 
-extension ARPlaneAnchor.Alignment: CustomStringConvertible {
+extension ARPlaneAnchor.Alignment: @retroactive CustomStringConvertible {
     public var description: String {
         switch self {
         case .horizontal:
