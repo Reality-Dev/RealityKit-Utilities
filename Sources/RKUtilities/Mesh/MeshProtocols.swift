@@ -15,6 +15,9 @@ public protocol HasPlaneGeometry {
 }
 
 #if os(visionOS)
+@available(visionOS 2.0, *)
+extension RoomAnchor: HasMeshGeometry {}
+
 extension MeshAnchor: HasMeshGeometry {}
 extension PlaneAnchor: HasPlaneGeometry {}
 #elseif os(iOS)
