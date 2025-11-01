@@ -2,7 +2,7 @@ import RealityKit
 #if canImport(Accelerate)
 import Accelerate
 
-// MARK: - Accelerate implementation (vDSP)
+// MARK: - Accelerate implementation (vDSP + vForce where useful)
 
 public struct AcceleratedUVGenerator: UVGenerator {
 
@@ -49,6 +49,110 @@ public struct AcceleratedUVGenerator: UVGenerator {
         if normalizeUVs { normalize01(u: &uu, v: &vv) }
         tileAndFlip(u: &uu, v: &vv, tiling: tiling, flipV: flipV)
         return interleave(u: uu, v: vv)
+    }
+
+    // MARK: - Accelerated non-planar projections
+
+    /// Computes cylindrical UVs using vDSP/vForce. Returns raw U (angle in radians, seam-unwrapped) and V (height in meters).
+    @inlinable
+    func cylindricalUVs(
+        positions: [SIMD3<Float>],
+        axis aIn: SIMD3<Float>,
+        center c: SIMD3<Float>
+    ) -> (u: [Float], v: [Float]) {
+        let a = simd_normalize(aIn)
+
+        // Build orthonormal frame (x̂, ẑ) around axis a
+        let helper: SIMD3<Float> = abs(a.y) < 0.9 ? SIMD3<Float>(0,1,0) : SIMD3<Float>(1,0,0)
+        let xhat = simd_normalize(simd_cross(helper, a))
+        let zhat = simd_normalize(simd_cross(a, xhat))
+
+        let n = positions.count
+        var xs = [Float](repeating: 0, count: n)
+        var ys = [Float](repeating: 0, count: n)
+        var zs = [Float](repeating: 0, count: n)
+        for i in 0..<n { xs[i] = positions[i].x - c.x; ys[i] = positions[i].y - c.y; zs[i] = positions[i].z - c.z }
+
+        // Dot products with vDSP
+        var px = dotSOA(x: xs, y: ys, z: zs, axis: xhat)
+        var pz = dotSOA(x: xs, y: ys, z: zs, axis: zhat)
+        let h  = dotSOA(x: xs, y: ys, z: zs, axis: a) // height along axis
+
+        // Angle = atan2(pz, px) using vForce
+        var u = [Float](repeating: 0, count: n)
+        var len32 = Int32(n)
+        vvatan2f(&u, pz, px, &len32) // u in [-π, π]
+
+        // Simple phase-unwrapping to avoid seam jumps
+        if n > 1 {
+            let twoPi = 2 * Float.pi
+            for i in 1..<n {
+                var d = u[i] - u[i - 1]
+                if d >  Float.pi { u[i] -= twoPi }
+                if d < -Float.pi { u[i] += twoPi }
+            }
+        }
+        return (u, h)
+    }
+
+    /// Computes spherical UVs using vDSP/vForce. Returns raw U (θ in radians, seam-unwrapped) and V (φ in radians).
+    @inlinable
+    func sphericalUVs(
+        positions: [SIMD3<Float>],
+        center c: SIMD3<Float>
+    ) -> (u: [Float], v: [Float]) {
+        let n = positions.count
+        var xs = [Float](repeating: 0, count: n)
+        var ys = [Float](repeating: 0, count: n)
+        var zs = [Float](repeating: 0, count: n)
+        for i in 0..<n { xs[i] = positions[i].x - c.x; ys[i] = positions[i].y - c.y; zs[i] = positions[i].z - c.z }
+
+        // r = sqrt(x^2 + y^2 + z^2)
+        var x2 = [Float](repeating: 0, count: n)
+        var y2 = [Float](repeating: 0, count: n)
+        var z2 = [Float](repeating: 0, count: n)
+        vDSP_vsq(xs, 1, &x2, 1, vDSP_Length(n))
+        vDSP_vsq(ys, 1, &y2, 1, vDSP_Length(n))
+        vDSP_vsq(zs, 1, &z2, 1, vDSP_Length(n))
+        var sum = [Float](repeating: 0, count: n)
+        vDSP_vadd(x2, 1, y2, 1, &sum, 1, vDSP_Length(n))
+        vDSP_vadd(sum, 1, z2, 1, &sum, 1, vDSP_Length(n))
+        var r = [Float](repeating: 0, count: n)
+        var n32 = Int32(n)
+        vvsqrtf(&r, sum, &n32)
+
+        // Guard small r
+        var eps: Float = 1e-6
+        vDSP_vthr(r, 1, &eps, &r, 1, vDSP_Length(n)) // r = max(r, eps)
+
+        // Normalize components by r
+        var nx = [Float](repeating: 0, count: n)
+        var ny = [Float](repeating: 0, count: n)
+        var nz = [Float](repeating: 0, count: n)
+        vDSP_vdiv(r, 1, xs, 1, &nx, 1, vDSP_Length(n))
+        vDSP_vdiv(r, 1, ys, 1, &ny, 1, vDSP_Length(n))
+        vDSP_vdiv(r, 1, zs, 1, &nz, 1, vDSP_Length(n))
+
+        // θ = atan2(nz, nx), φ = acos(ny)
+        var u = [Float](repeating: 0, count: n)
+        var v = [Float](repeating: 0, count: n)
+        vvatan2f(&u, nz, nx, &n32) // [-π, π]
+        // clamp ny to [-1,1] before acos
+        var ones = [Float](repeating: 1, count: n)
+        var negOnes = [Float](repeating: -1, count: n)
+        vDSP_vclip(ny, 1, &negOnes, &ones, &ny, 1, vDSP_Length(n))
+        vvacosf(&v, ny, &n32)      // [0, π]
+
+        // Unwrap θ to avoid seam jumps
+        if n > 1 {
+            let twoPi = 2 * Float.pi
+            for i in 1..<n {
+                var d = u[i] - u[i - 1]
+                if d >  Float.pi { u[i] -= twoPi }
+                if d < -Float.pi { u[i] += twoPi }
+            }
+        }
+        return (u, v)
     }
 
     // MARK: vDSP building blocks

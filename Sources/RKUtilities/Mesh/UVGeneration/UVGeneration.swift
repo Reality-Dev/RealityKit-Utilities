@@ -11,9 +11,36 @@ public enum UVProjectionBasis {
     case worldXY, worldXZ, worldYZ
     /// Provide a custom orthonormal basis
     case custom(u: simd_float3, v: simd_float3)
+
+    // Additional options (kept backward compatible with your existing API):
+    /// Automatically pick a sensible projection basis using lightweight heuristics (gravity, PCA).
+    case automatic
+    /// Planar projection using a local frame (translation + rotation). Useful when you know the exact frame.
+    case planar(projection: UVPlanarProjection)
+    /// Per-vertex box mapping based on dominant normal component (±X/±Y/±Z).
+    case boxWorld
+    /// Cylindrical mapping around an axis through `center`. If values are nil, fall back to PCA hints.
+    case cylindrical(axis: simd_float3? = nil, center: simd_float3? = nil)
+    /// Spherical mapping about `center`. If nil, uses the data PCA center.
+    case spherical(center: simd_float3? = nil)
+    /// Camera/projective mapping using a view-projection matrix (world -> clip).
+    case camera(viewProjection: simd_float4x4)
+}
+
+/// Rotation + translation that define a local planar frame.
+/// Columns of `rotation.matrix` are the local axes; project after subtracting `translation`.
+public struct UVPlanarProjection {
+    public var translation: simd_float3
+    public var rotation: simd_quatf
+    public init(translation: simd_float3, rotation: simd_quatf) {
+        self.translation = translation
+        self.rotation = rotation
+    }
 }
 
 // MARK: - Orthonormal basis helpers (unchanged logic)
+
+// Helpers moved to `RobustNormals.swift`
 
 @inlinable
 internal func orthonormalBasis(for n: simd_float3) -> (u: simd_float3, v: simd_float3) {
@@ -41,6 +68,21 @@ internal func basis(for mode: UVProjectionBasis, avgNormal: simd_float3) -> (u: 
         let uu = simd_normalize(u)
         let vv = simd_normalize(v)
         return (uu, vv)
+
+    // New cases that return planar axes directly (the rest are handled in the body below):
+    case .automatic:
+        // Use the average normal as a quick hint; the full automatic path below may override this with non-planar projections.
+        let n = simd_length(avgNormal) > 0.0001 ? simd_normalize(avgNormal) : simd_float3(0,1,0)
+        return orthonormalBasis(for: n)
+    case .planar(let planar):
+        // Columns of rotation.matrix are the local axes; take the first two for U,V
+        let R = simd_float3x3(planar.rotation)
+        return (simd_normalize(R.columns.0), simd_normalize(R.columns.1))
+    case .boxWorld, .cylindrical, .spherical, .camera:
+        // These are non-planar projections; axes are resolved later per-vertex.
+        // Return a harmless default to satisfy the signature.
+        let n = simd_length(avgNormal) > 0.0001 ? simd_normalize(avgNormal) : simd_float3(0,1,0)
+        return orthonormalBasis(for: n)
     }
 }
 
@@ -67,7 +109,7 @@ internal protocol UVGenerator {
         flipV: Bool
     ) -> [SIMD2<Float>]
 
-    /// Convenience when you already have scalar U and V arrays (e.g. plane XZ/XY mapping).
+    /// Convenience when you already have scalar U and V arrays (e.g. box/cyl/sphere/camera or plane XZ/XY mapping).
     func generateUVs(
         u: [Float],
         v: [Float],
@@ -75,6 +117,12 @@ internal protocol UVGenerator {
         tiling: SIMD2<Float>,
         flipV: Bool
     ) -> [SIMD2<Float>]
+    
+    /// Compute cylindrical UVs using the appropriate backend. Returns raw U,V arrays before normalization/tiling/flip.
+    func cylindricalUVs(positions: [SIMD3<Float>], axis: SIMD3<Float>, center: SIMD3<Float>) -> (u: [Float], v: [Float])
+    
+    /// Compute spherical UVs using the appropriate backend. Returns raw U,V arrays before normalization/tiling/flip.
+    func sphericalUVs(positions: [SIMD3<Float>], center: SIMD3<Float>) -> (u: [Float], v: [Float])
 }
 
 // MARK: - Factory
@@ -100,11 +148,11 @@ internal enum UVGeneratorFactory {
 @MainActor
 public extension MeshResource {
 
-    /// Generate a MeshResource from MeshGeometry, adding planar UVs.
+    /// Generate a MeshResource from MeshGeometry, adding UVs.
     /// - Parameters:
     ///   - geom: mesh geometry (conforming to `MeshGeometry`)
-    ///   - projection: How to choose the (U,V) projection axes
-    ///   - normalizeUVs: If true, remap UVs into [0,1] using the mesh's bounds in the projection plane
+    ///   - projection: The projection mode (planar/box/cyl/spherical/camera/automatic).
+    ///   - normalizeUVs: If true, remap UVs into [0,1] using the mesh's bounds in the projection domain.
     ///   - tiling: Multiply the final UVs by this amount (use meters-as-UV when `normalizeUVs == false`)
     ///   - flipV: Flip V to match common image coordinate conventions
     ///   - preferAccelerate: Pass `false` to force the scalar implementation (handy for A/B or unit tests)
@@ -136,18 +184,103 @@ public extension MeshResource {
         }
         desc.primitives = .polygons(indexCounts, faceIndices)
 
-        // --- UVs via strategy ---
-        let avgN = geom.avergeNormal
-        let (uAxis, vAxis) = basis(for: projection, avgNormal: avgN)
+        // --- UVs ---
+        // Note: We support both planar and non-planar projections. For non-planar, we compute U,V arrays first,
+        // then ask the generator to normalize/tile/flip and interleave them.
         let generator = UVGeneratorFactory.make(preferAccelerate: preferAccelerate)
-        let uvs = generator.generateUVs(
+
+        // Compute a robust average normal that resists degenerate/NaN normals.
+        let avgN: simd_float3 = robustAverageNormal(
             positions: positions,
-            uAxis: uAxis,
-            vAxis: vAxis,
-            normalizeUVs: normalizeUVs,
-            tiling: tiling,
-            flipV: flipV
+            normals: normals,
+            faceIndices: faceIndices,
+            indexCounts: indexCounts
         )
+
+        // Optional automatic projection selection (lightweight heuristics).
+        let chosenProjection: UVProjectionBasis = {
+            switch projection {
+            case .automatic:
+                return chooseProjection(positions: positions, normals: normals)
+            default:
+                return projection
+            }
+        }()
+
+        let uvs: [SIMD2<Float>]
+
+        switch chosenProjection {
+
+        // Planar family (use fast generator projection path)
+        case .fromAverageNormal, .worldXY, .worldXZ, .worldYZ, .custom:
+            let (uAxis, vAxis) = basis(for: chosenProjection, avgNormal: avgN)
+            uvs = generator.generateUVs(
+                positions: positions,
+                uAxis: uAxis,
+                vAxis: vAxis,
+                normalizeUVs: normalizeUVs,
+                tiling: tiling,
+                flipV: flipV
+            )
+
+        case .planar(let p):
+            // Apply translation by projecting in the local frame (subtract origin)
+            let R = simd_float3x3(p.rotation)
+            let uAxis = simd_normalize(R.columns.0)
+            let vAxis = simd_normalize(R.columns.1)
+            let local = positions.map { $0 - p.translation }
+            uvs = generator.generateUVs(
+                positions: local,
+                uAxis: uAxis,
+                vAxis: vAxis,
+                normalizeUVs: normalizeUVs,
+                tiling: tiling,
+                flipV: flipV
+            )
+
+        // Non-planar projections (compute U,V arrays first; let generator post-process)
+        case .boxWorld:
+            let (u, v) = uvBoxWorld(positions: positions, normals: normals)
+            uvs = generator.generateUVs(
+                u: u, v: v,
+                normalizeUVs: normalizeUVs,
+                tiling: tiling,
+                flipV: flipV
+            )
+
+        case let .cylindrical(axisOpt, centerOpt):
+            let (_, _, centerPCA) = pca3Positions(positions)
+            let axis = axisOpt ?? principalAxis(positions)
+            let center = centerOpt ?? centerPCA
+            let (u, v) = generator.cylindricalUVs(positions: positions, axis: axis, center: center)
+            uvs = generator.generateUVs(u: u, v: v, normalizeUVs: normalizeUVs, tiling: tiling, flipV: flipV)
+
+        case let .spherical(centerOpt):
+            let (_, _, centerPCA) = pca3Positions(positions)
+            let center = centerOpt ?? centerPCA
+            let (u, v) = generator.sphericalUVs(positions: positions, center: center)
+            uvs = generator.generateUVs(u: u, v: v, normalizeUVs: normalizeUVs, tiling: tiling, flipV: flipV)
+
+        case let .camera(mvp):
+            let (u, v) = uvCameraProject(positions: positions, viewProjection: mvp)
+            uvs = generator.generateUVs(
+                u: u, v: v,
+                normalizeUVs: normalizeUVs, // most of the time you'll keep this true
+                tiling: tiling,
+                flipV: flipV
+            )
+        case .automatic:
+            assertionFailure("Auto should not be reached")
+            // Fallback for release build.
+            let (u, v) = uvBoxWorld(positions: positions, normals: normals)
+            uvs = generator.generateUVs(
+                u: u, v: v,
+                normalizeUVs: normalizeUVs,
+                tiling: tiling,
+                flipV: flipV
+            )
+        }
+
         desc.textureCoordinates = .init(uvs)
 
         // While this claims to be available on iOS 15 and up, this is a bug from Apple, and will crash on anything below iOS 18.
@@ -200,14 +333,14 @@ public extension MeshResource {
     }
 }
 
-// MARK: - Convenience for anchors (unchanged API surface)
+// MARK: - Convenience for anchors
 
-#if os(iOS)
 @available(iOS 18.0, *)
+@available(visionOS 1.0, *)
 @MainActor
 public extension MeshResource {
     nonisolated static func generateWithUVs(
-        from anchor: ARMeshAnchor,
+        from anchor: any HasMeshGeometry,
         projection: UVProjectionBasis = .fromAverageNormal,
         normalizeUVs: Bool = true,
         tiling: SIMD2<Float> = .one,
@@ -222,23 +355,3 @@ public extension MeshResource {
                                   preferAccelerate: preferAccelerate)
     }
 }
-#elseif os(visionOS)
-@MainActor
-public extension MeshResource {
-    nonisolated static func generateWithUVs(
-        from anchor: MeshAnchor,
-        projection: UVProjectionBasis = .fromAverageNormal,
-        normalizeUVs: Bool = true,
-        tiling: SIMD2<Float> = .one,
-        flipV: Bool = false,
-        preferAccelerate: Bool = true
-    ) async throws -> MeshResource {
-        try await generateWithUVs(from: anchor.geometry,
-                                  projection: projection,
-                                  normalizeUVs: normalizeUVs,
-                                  tiling: tiling,
-                                  flipV: flipV,
-                                  preferAccelerate: preferAccelerate)
-    }
-}
-#endif

@@ -74,4 +74,14 @@ public struct ScalarUVGenerator: UVGenerator {
         }
         return uvs
     }
+    
+    @inlinable
+    func cylindricalUVs(positions: [SIMD3<Float>], axis: SIMD3<Float>, center: SIMD3<Float>) -> (u: [Float], v: [Float]) {
+        return uvCylindrical(positions: positions, axis: axis, center: center)
+    }
+    
+    @inlinable
+    func sphericalUVs(positions: [SIMD3<Float>], center: SIMD3<Float>) -> (u: [Float], v: [Float]) {
+        return uvSpherical(positions: positions, center: center)
+    }
 }
