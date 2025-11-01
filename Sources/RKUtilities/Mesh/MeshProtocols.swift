@@ -12,6 +12,10 @@ public protocol HasPlaneGeometry {
     associatedtype RKGeometry: PlaneGeometry
     
     var geometry: RKGeometry { get }
+    
+    var anchorFromExtentTransform: simd_float4x4 { get }
+    
+    var extent: PlaneExtent { get }
 }
 
 #if os(visionOS)
@@ -19,10 +23,28 @@ public protocol HasPlaneGeometry {
 extension RoomAnchor: HasMeshGeometry {}
 
 extension MeshAnchor: HasMeshGeometry {}
-extension PlaneAnchor: HasPlaneGeometry {}
+extension PlaneAnchor: HasPlaneGeometry {
+    public var extent: any PlaneExtent { geometry.extent }
+    
+    public var anchorFromExtentTransform: simd_float4x4 {
+        geometry.extent.anchorFromExtentTransform
+    }
+}
 #elseif os(iOS)
 extension ARMeshAnchor: HasMeshGeometry {}
-extension ARPlaneAnchor: HasPlaneGeometry {}
+
+@available(iOS 16.0, *)
+extension ARPlaneAnchor: HasPlaneGeometry {
+    public var extent: any PlaneExtent { planeExtent }
+
+    public var anchorFromExtentTransform: simd_float4x4 {
+        var transform = Transform(pitch: 0, yaw: planeExtent.rotationOnYAxis, roll: 0)
+        
+        transform.translation = center
+        
+        return transform.matrix
+    }
+}
 #endif
 
 #if os(visionOS)
