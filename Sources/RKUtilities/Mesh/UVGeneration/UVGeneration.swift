@@ -314,6 +314,7 @@ public extension MeshResource {
     /// For planes this is trivial: X maps to U, Z (iOS) or Y (visionOS) maps to V.
     nonisolated static func generateWithUVs(
         from plane: any PlaneGeometry,
+        projection: UVProjectionBasis = .fromAverageNormal,
         normalizeUVs: Bool = true,
         tiling: SIMD2<Float> = .one,
         flipV: Bool = false,
@@ -322,27 +323,8 @@ public extension MeshResource {
 
         var desc = MeshResource.generateDescriptor(from: plane)
 
-        // --- UVs for plane via strategy ---
-        #if os(visionOS)
-        let uArr = plane.vertices.map { $0.x }
-        let vArr = plane.vertices.map { $0.y }
-        #else
-        let uArr = positions.map { $0.x }
-        let vArr = positions.map { $0.z }
-        #endif
-
-        let generator = UVGeneratorFactory.make(preferAccelerate: preferAccelerate)
-        let uvs = generator.generateUVs(
-            u: uArr,
-            v: vArr,
-            normalizeUVs: normalizeUVs,
-            tiling: tiling,
-            flipV: flipV
-        )
-        desc.textureCoordinates = .init(uvs)
-
         // While this claims to be available on iOS 15 and up, this is a bug from Apple, and will crash on anything below iOS 18.
-        return try await MeshResource(from: [desc])
+        return try await applyUVs(to: desc)
     }
 }
 
