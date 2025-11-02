@@ -24,9 +24,92 @@ extension ARMeshGeometry {
 }
 #endif
 
+/// Read one face index from a raw buffer, regardless of index size (2 or 4 bytes common).
+/// `indexOffset` is in index units, not bytes.
+@inline(__always)
+nonisolated public func readIndex(
+    _ base: UnsafeRawPointer,
+    at indexOffset: Int,
+    bytesPerIndex: Int
+) -> UInt32 {
+    let p = base.advanced(by: indexOffset * bytesPerIndex)
+    switch bytesPerIndex {
+    case 2:
+        // Safe & fast: copy into a properly aligned temporary
+        var v16: UInt16 = 0
+        memcpy(&v16, p, 2)
+        return UInt32(v16)
+    case 4:
+        var v32: UInt32 = 0
+        memcpy(&v32, p, 4)
+        return v32
+    default:
+        // Generic little-endian assemble (supports 1–4 bytes)
+        var out: UInt32 = 0
+        for b in 0..<min(bytesPerIndex, 4) {
+            let byte = base.advanced(by: indexOffset * bytesPerIndex + b).load(as: UInt8.self)
+            out |= UInt32(byte) << (8 * b)
+        }
+        return out
+    }
+}
+
+public extension MeshDescriptor.Primitives {
+
+    /// Return polygons-style data for any primitives case.
+    /// - indexCounts: one count per face (3 for triangles, 4 for quads)
+    /// - faceIndices: concatenated indices for all faces, in order
+    func asPolygons() -> (indexCounts: [UInt8], faceIndices: [UInt32]) {
+        switch self {
+        case let .polygons(counts, indices):
+            return (counts, indices)
+
+        case let .triangles(tri):
+            precondition(tri.count % 3 == 0, "Triangle index array not multiple of 3")
+            let faceCount = tri.count / 3
+            let counts = [UInt8](repeating: 3, count: faceCount)
+            return (counts, tri)
+
+        case let .trianglesAndQuads(triangles: t, quads: q):
+            precondition(t.count % 3 == 0, "Triangle array not multiple of 3")
+            precondition(q.count % 4 == 0, "Quad array not multiple of 4")
+            let triFaces  = t.count / 3
+            let quadFaces = q.count / 4
+
+            var counts = [UInt8](repeating: 3, count: triFaces)
+            counts.append(contentsOf: [UInt8](repeating: 4, count: quadFaces))
+
+            var indices = t
+            indices.append(contentsOf: q)
+
+            return (counts, indices)
+        }
+    }
+
+    /// Number of faces (primitives)
+    var faceCount: Int {
+        switch self {
+        case let .polygons(counts, _): return counts.count
+        case let .triangles(tri):      return tri.count / 3
+        case let .trianglesAndQuads(t, q):
+            return t.count / 3 + q.count / 4
+        }
+    }
+
+    /// Total index count (sum of per-face counts)
+    var totalIndexCount: Int {
+        switch self {
+        case let .polygons(_, indices): return indices.count
+        case let .triangles(tri):       return tri.count
+        case let .trianglesAndQuads(t, q):
+            return t.count + q.count
+        }
+    }
+}
 
 public
 extension MeshGeometry {
+    
     func vertex(at index: UInt32) -> (Float, Float, Float) {
         assert(vertices.format == MTLVertexFormat.float3, "Expected three floats (twelve bytes) per vertex.")
         let vertexPointer = vertices.buffer.contents().advanced(by: vertices.offset + (vertices.stride * Int(index)))
@@ -109,7 +192,7 @@ extension MeshGeometry {
         let epsilon: Float = 0.000_001
         
         // Separate the components
-        //!! not sure if near 0 is a suitable replacement for nan...
+        // TODO: not sure if near 0 is a suitable replacement for nan...
         let xComponents = vectors.map { $0.x.isNaN ? epsilon : $0.x }
         let yComponents = vectors.map { $0.y.isNaN ? epsilon : $0.y }
         let zComponents = vectors.map { $0.z.isNaN ? epsilon : $0.z }

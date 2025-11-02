@@ -88,7 +88,6 @@ extension PlaneAnchor.Geometry: PlaneGeometry {
         (0..<faceCount * vertexCountPerFace).map {
             meshFaces.buffer.contents()
                 .advanced(by: $0 * meshFaces.bytesPerIndex)
-            //!! Is this correct or is it UInt16??
                 .assumingMemoryBound(to: UInt32.self).pointee
         }
     }
@@ -208,7 +207,7 @@ public protocol GeometricSource {
 public
 extension GeometricSource {
     func asArray<T>(ofType: T.Type) -> [T] {
-        //!! Needs to be on main?
+        // TODO: Needs to be on main?
         assert(MemoryLayout<T>.stride == stride, "Invalid stride \(MemoryLayout<T>.stride); expected \(stride)")
         return (0..<self.count).map {
             buffer.contents().advanced(by: offset + stride * Int($0)).assumingMemoryBound(to: T.self).pointee
@@ -219,6 +218,12 @@ extension GeometricSource {
     func asSIMD3<T>(ofType: T.Type) -> [SIMD3<T>] {
         return asArray(ofType: (T, T, T).self).map { .init($0.0, $0.1, $0.2) }
     }
+}
+
+public
+extension SIMD3 where Scalar == Float {
+    @inlinable init(_ t: (Float, Float, Float)) { self.init(t.0, t.1, t.2) }
+    @inlinable init<T: BinaryFloatingPoint>(_ x: T, _ y: T, _ z: T) { self.init(Float(x), Float(y), Float(z)) }
 }
 
 public protocol GeometricElement  {

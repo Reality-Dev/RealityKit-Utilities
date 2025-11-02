@@ -148,42 +148,27 @@ internal enum UVGeneratorFactory {
 @MainActor
 public extension MeshResource {
 
-    /// Generate a MeshResource from MeshGeometry, adding UVs.
-    /// - Parameters:
-    ///   - geom: mesh geometry (conforming to `MeshGeometry`)
-    ///   - projection: The projection mode (planar/box/cyl/spherical/camera/automatic).
-    ///   - normalizeUVs: If true, remap UVs into [0,1] using the mesh's bounds in the projection domain.
-    ///   - tiling: Multiply the final UVs by this amount (use meters-as-UV when `normalizeUVs == false`)
-    ///   - flipV: Flip V to match common image coordinate conventions
-    ///   - preferAccelerate: Pass `false` to force the scalar implementation (handy for A/B or unit tests)
-    /// - Note: By default, on visionOS 2.0, `MeshResource(from: meshAnchor)` does not provide any UV's. This fixes that.
-    nonisolated static func generateWithUVs(
-        from geom: any MeshGeometry,
+    nonisolated static func applyUVs(
+        to desc: MeshDescriptor,
         projection: UVProjectionBasis = .fromAverageNormal,
         normalizeUVs: Bool = true,
         tiling: SIMD2<Float> = .one,
         flipV: Bool = false,
         preferAccelerate: Bool = true
     ) async throws -> MeshResource {
-
-        var desc = MeshDescriptor()
-
-        // Positions / normals from existing helpers
-        let positions = geom.vertices.asSIMD3(ofType: Float.self)
-        let normals   = geom.normals.asSIMD3(ofType: Float.self)
-
-        desc.positions = .init(positions)
-        desc.normals   = .init(normals)
-
-        // Topology (keep polygons if that's what you have)
-        let indexCounts = (0..<geom.faces.count).map { _ in UInt8(geom.faces.vertexCountPerFace) }
-        let faceIndices: [UInt32] = (0..<(geom.faces.count * geom.faces.vertexCountPerFace)).map {
-            geom.faces.buffer.contents()
-                .advanced(by: $0 * geom.faces.bytesPerIndex)
-                .assumingMemoryBound(to: UInt32.self).pointee
+        
+        var desc = desc
+        
+        let positions: [SIMD3<Float>] = desc.positions.elements
+        let normals: [SIMD3<Float>] = desc.normals?.elements ?? []
+        
+        var faceIndices = [UInt32]()
+        var indexCounts = [UInt8]()
+        if let polys = desc.primitives?.asPolygons() {
+            faceIndices = polys.faceIndices
+            indexCounts = polys.indexCounts
         }
-        desc.primitives = .polygons(indexCounts, faceIndices)
-
+        
         // --- UVs ---
         // Note: We support both planar and non-planar projections. For non-planar, we compute U,V arrays first,
         // then ask the generator to normalize/tile/flip and interleave them.
@@ -282,9 +267,47 @@ public extension MeshResource {
         }
 
         desc.textureCoordinates = .init(uvs)
-
+        
+#if DEBUG
+        do {
+            let report = try desc.validate(strict: false)
+            if !report.isValid {
+                print(report)
+            }
+        } catch {
+            print(error)
+        }
+#endif
         // While this claims to be available on iOS 15 and up, this is a bug from Apple, and will crash on anything below iOS 18.
         return try await MeshResource(from: [desc])
+    }
+    
+    /// Generate a MeshResource from MeshGeometry, adding UVs.
+    /// - Parameters:
+    ///   - geom: mesh geometry (conforming to `MeshGeometry`)
+    ///   - projection: The projection mode (planar/box/cyl/spherical/camera/automatic).
+    ///   - normalizeUVs: If true, remap UVs into [0,1] using the mesh's bounds in the projection domain.
+    ///   - tiling: Multiply the final UVs by this amount (use meters-as-UV when `normalizeUVs == false`)
+    ///   - flipV: Flip V to match common image coordinate conventions
+    ///   - preferAccelerate: Pass `false` to force the scalar implementation (handy for A/B or unit tests)
+    /// - Note: By default, on visionOS 2.0, `MeshResource(from: meshAnchor)` does not provide any UV's. This fixes that.
+    nonisolated static func generateWithUVs(
+        from geom: any MeshGeometry,
+        projection: UVProjectionBasis = .fromAverageNormal,
+        normalizeUVs: Bool = true,
+        tiling: SIMD2<Float> = .one,
+        flipV: Bool = false,
+        preferAccelerate: Bool = true
+    ) async throws -> MeshResource {
+
+        var desc = MeshResource.generateDescriptor(from: geom)
+        
+        return try await applyUVs(to: desc,
+                        projection: projection,
+                        normalizeUVs: normalizeUVs,
+                        tiling: tiling,
+                        flipV: flipV,
+                        preferAccelerate: preferAccelerate)
     }
 
     /// Generate a MeshResource from a PlaneGeometry, adding UVs.
@@ -297,22 +320,12 @@ public extension MeshResource {
         preferAccelerate: Bool = true
     ) async throws -> MeshResource {
 
-        var desc = MeshDescriptor()
-
-        let positions = plane.vertices
-        desc.positions = .init(positions)
-
-        // Flat normals pointing "up"
-        let normalValues = Array(repeating: simd_float3(0, 1, 0), count: positions.count)
-        desc.normals = .init(normalValues)
-
-        let indexCounts = (0..<plane.faceCount).map { _ in UInt8(plane.vertexCountPerFace) }
-        desc.primitives = .polygons(indexCounts, plane.faceIndices32)
+        var desc = MeshResource.generateDescriptor(from: plane)
 
         // --- UVs for plane via strategy ---
         #if os(visionOS)
-        let uArr = positions.map { $0.x }
-        let vArr = positions.map { $0.y }
+        let uArr = plane.vertices.map { $0.x }
+        let vArr = plane.vertices.map { $0.y }
         #else
         let uArr = positions.map { $0.x }
         let vArr = positions.map { $0.z }
@@ -339,6 +352,15 @@ public extension MeshResource {
 @available(visionOS 1.0, *)
 @MainActor
 public extension MeshResource {
+    /// Generate a MeshResource from a mesh anchor, adding UVs.
+    /// - Parameters:
+    ///   - anchor: mesh anchor (conforming to `HasMeshGeometry`)
+    ///   - projection: The projection mode (planar/box/cyl/spherical/camera/automatic).
+    ///   - normalizeUVs: If true, remap UVs into [0,1] using the mesh's bounds in the projection domain.
+    ///   - tiling: Multiply the final UVs by this amount (use meters-as-UV when `normalizeUVs == false`)
+    ///   - flipV: Flip V to match common image coordinate conventions
+    ///   - preferAccelerate: Pass `false` to force the scalar implementation (handy for A/B or unit tests)
+    /// - Note: By default, on visionOS 2.0, `MeshResource(from: meshAnchor)` does not provide any UV's. This fixes that.
     nonisolated static func generateWithUVs(
         from anchor: any HasMeshGeometry,
         projection: UVProjectionBasis = .fromAverageNormal,

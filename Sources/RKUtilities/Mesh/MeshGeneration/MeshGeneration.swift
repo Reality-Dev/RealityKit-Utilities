@@ -20,7 +20,7 @@ public extension PlaneExtent {
 @MainActor
 public extension MeshResource {
     
-    private nonisolated static func generateDescriptor(
+    internal nonisolated static func generateDescriptor(
         from geom: any PlaneGeometry
     ) -> MeshDescriptor {
         var desc = MeshDescriptor()
@@ -34,9 +34,11 @@ public extension MeshResource {
         desc.normals = .init(normalValues)
         
         let indexCounts = (0..<geom.faceCount).map { _ in UInt8(geom.vertexCountPerFace) }
-
-        //!! Can we use triangles here?
-        desc.primitives = .polygons(indexCounts, geom.faceIndices32)
+        
+        let vpf = geom.vertexCountPerFace
+        precondition(vpf == 3, "Only triangles expected")
+        
+        desc.primitives = .triangles(geom.faceIndices32)
         
         return desc
     }
@@ -51,10 +53,9 @@ public extension MeshResource {
         return try await MeshResource(from: [desc])
     }
     
-    nonisolated static func generate(
+    public nonisolated static func generateDescriptor(
         from geom: any MeshGeometry
-    ) async throws -> MeshResource {
-        
+    ) -> MeshDescriptor {
         var desc = MeshDescriptor()
         
         let positions = geom.vertices.asSIMD3(ofType: Float.self)
@@ -65,16 +66,25 @@ public extension MeshResource {
         
         desc.normals = .init(normalValues)
         
-        let indexCounts = (0..<geom.faces.count).map { _ in UInt8(geom.faces.vertexCountPerFace) }
-        
         let faceIndices = (0..<geom.faces.count * geom.faces.vertexCountPerFace).map {
             geom.faces.buffer.contents()
                 .advanced(by: $0 * geom.faces.bytesPerIndex)
                 .assumingMemoryBound(to: UInt32.self).pointee
         }
-
-        //!! Can we use triangles here?
-        desc.primitives = .polygons(indexCounts, faceIndices)
+        
+        let vpf = geom.faces.vertexCountPerFace
+        precondition(vpf == 3, "Only triangles expected")
+        
+        desc.primitives = .triangles(faceIndices)
+        
+        return desc
+    }
+    
+    nonisolated static func generate(
+        from geom: any MeshGeometry
+    ) async throws -> MeshResource {
+        
+        let desc = generateDescriptor(from: geom)
 
         // While this claims to be available on iOS 15 and up, this is a bug from Apple, and will crash on anything below iOS 18.
         return try await MeshResource(from: [desc])

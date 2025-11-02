@@ -58,7 +58,7 @@ func uvCylindrical(
     if angle.count > 1 {
         let twoPi = 2 * Float.pi
         for i in 1..<angle.count {
-            var d = angle[i] - angle[i-1]
+            let d = angle[i] - angle[i-1]
             if d >  Float.pi { angle[i] -= twoPi }
             if d < -Float.pi { angle[i] += twoPi }
         }
@@ -87,7 +87,7 @@ func uvSpherical(
     if u.count > 1 {
         let twoPi = 2 * Float.pi
         for i in 1..<u.count {
-            var d = u[i] - u[i-1]
+            let d = u[i] - u[i-1]
             if d >  Float.pi { u[i] -= twoPi }
             if d < -Float.pi { u[i] += twoPi }
         }

@@ -86,7 +86,7 @@ func robustAverageNormal(
     for n in normals where isFinite3(n) {
         sum += n; count += 1
     }
-    var avg = count > 0 ? safeNormalize(sum / count) : simd_float3.zero
+    let avg = count > 0 ? safeNormalize(sum / count) : simd_float3.zero
     if simd_length_squared(avg) > 1e-12 { return avg }
 
     // 2) area-weighted faces

@@ -74,8 +74,8 @@ public struct AcceleratedUVGenerator: UVGenerator {
         for i in 0..<n { xs[i] = positions[i].x - c.x; ys[i] = positions[i].y - c.y; zs[i] = positions[i].z - c.z }
 
         // Dot products with vDSP
-        var px = dotSOA(x: xs, y: ys, z: zs, axis: xhat)
-        var pz = dotSOA(x: xs, y: ys, z: zs, axis: zhat)
+        let px = dotSOA(x: xs, y: ys, z: zs, axis: xhat)
+        let pz = dotSOA(x: xs, y: ys, z: zs, axis: zhat)
         let h  = dotSOA(x: xs, y: ys, z: zs, axis: a) // height along axis
 
         // Angle = atan2(pz, px) using vForce
@@ -87,7 +87,7 @@ public struct AcceleratedUVGenerator: UVGenerator {
         if n > 1 {
             let twoPi = 2 * Float.pi
             for i in 1..<n {
-                var d = u[i] - u[i - 1]
+                let d = u[i] - u[i - 1]
                 if d >  Float.pi { u[i] -= twoPi }
                 if d < -Float.pi { u[i] += twoPi }
             }
@@ -147,7 +147,7 @@ public struct AcceleratedUVGenerator: UVGenerator {
         if n > 1 {
             let twoPi = 2 * Float.pi
             for i in 1..<n {
-                var d = u[i] - u[i - 1]
+                let d = u[i] - u[i - 1]
                 if d >  Float.pi { u[i] -= twoPi }
                 if d < -Float.pi { u[i] += twoPi }
             }
