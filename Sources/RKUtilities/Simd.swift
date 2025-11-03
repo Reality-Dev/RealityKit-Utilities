@@ -129,6 +129,10 @@ public extension SIMD3 where Scalar == Float {
         return Swift.max(self.x, self.y, self.z)
     }
     
+    func toArray() -> [Float] {
+        return [x, y, z]
+    }
+    
     func maxLength(_ maxLength: Float) -> simd_float3 {
         let currentLength = length(self)
         if currentLength > maxLength {
@@ -292,6 +296,16 @@ public extension float4x4 {
         }
     }
     
+    @available(*, deprecated, message: "Use toParentSpacePosition(_:) instead.")
+    func convertPositionToWorldSpace(_ inputPosition: simd_float3) -> simd_float3 {
+        toParentSpacePosition(inputPosition)
+    }
+    
+    @available(*, deprecated, message: "Use fromParentSpacePosition(_:) instead.")
+    func convertPositionToLocalSpace(_ inputPosition: simd_float3) -> simd_float3 {
+        fromParentSpacePosition(inputPosition)
+    }
+    
     /// Converts a position from this transform’s coordinate space into its parent’s coordinate space.
     func toParentSpacePosition(_ position: simd_float3) -> simd_float3 {
         let localTransform = simd_float4x4(translation: position)
@@ -317,7 +331,7 @@ public extension float4x4 {
         return newTransform
     }
 }
-extension float4x4: CustomStringConvertible {
+extension float4x4: @retroactive CustomStringConvertible {
     ///Calling print(myMatrix) prints the *columns* one after another, horizontally. This function allows us to visualize the actual matrix with the columns laid out vertically and the rows laid out horizontally.
     /// - Values are rounded to the nearest hundredths place to keep columns and rows aligned visually.
     public var description: String {
