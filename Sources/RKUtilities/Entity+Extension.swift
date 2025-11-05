@@ -117,22 +117,6 @@ public extension Entity {
         self.visit(using: {$0.setTransformMatrix(float4x4.init(diagonal: [1,1,1,1]), relativeTo: self.parent)})
     }
     
-#if !os(visionOS)
-    func isOnScreen(
-        arView: ARView,
-        bounds: CGRect,
-        margins: CGSize = .zero
-    ) -> Bool {
-        guard let screenPosition = arView.project(self.worldPosition) else {
-            return false
-        }
-        let width = (0 + margins.width) ... (bounds.width - margins.width)
-        let height = (0 + margins.height) ... (bounds.height - margins.height)
-        let inBounds = width.contains(screenPosition.x) && height.contains(screenPosition.y)
-        return inBounds
-    }
-#endif
-    
     func findInRoot(where predicate: (Entity) -> Bool) -> Entity? {
         guard let root = findAncestor(where: {$0.parent == nil}) else {return nil}
         

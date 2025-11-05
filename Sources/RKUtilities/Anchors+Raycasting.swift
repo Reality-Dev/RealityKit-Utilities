@@ -21,23 +21,6 @@ public extension ARCamera {
     }
 }
 
-// MARK: - ARAnchor extensions
-public extension ARAnchor {
-    func isOnScreen(
-        arView: ARView,
-        bounds: CGRect,
-        margins: CGSize = .zero
-    ) -> Bool {
-        guard let screenPosition = arView.project(self.transform.translation) else {
-            return false
-        }
-        let width = (0 + margins.width) ... (bounds.width - margins.width)
-        let height = (0 + margins.height) ... (bounds.height - margins.height)
-        let inBounds = width.contains(screenPosition.x) && height.contains(screenPosition.y)
-        return inBounds
-    }
-}
-
 // MARK: - ARPlaneAnchor extensions
 public extension ARPlaneAnchor {
     ///Convert from ARKit alignment to RealityKit alignment.
@@ -116,7 +99,6 @@ public extension AnchorEntity {
     }
 }
 
-// MARK: - ARView extensions
 public extension ARView {
     /// This performs a raycast from the given screen point.
     /// - Parameters:
