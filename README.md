@@ -1,6 +1,6 @@
 # RKUtilities
 
-This package is a collection of methods that make things easier to do and more convenient to work with in RealityKit.
+RKUtilities is a collection of utility methods and extensions designed to simplify common workflows in RealityKit. It provides a set of convenience APIs that make working with RealityKit components, entities, and resources more efficient and expressive.
 
 ## More
 
