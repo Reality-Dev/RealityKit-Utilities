@@ -14,6 +14,16 @@ import UIKit
 // MARK: - Entity extensions
 public extension Entity {
     
+    convenience init(named name: String) {
+        self.init()
+        self.name = name
+    }
+    
+    convenience init(named name: String) async {
+        self.init()
+        self.name = name
+    }
+    
     func visit(using block: (Entity) -> Void) {
         block(self)
         for child in children {
