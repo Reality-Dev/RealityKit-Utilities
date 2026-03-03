@@ -14,12 +14,12 @@ import UIKit
 // MARK: - Entity extensions
 public extension Entity {
     
-    convenience init(named name: String) {
+    convenience init(name: String) {
         self.init()
         self.name = name
     }
     
-    convenience init(named name: String) async {
+    convenience init(name: String) async {
         self.init()
         self.name = name
     }
