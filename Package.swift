@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "RKUtilities",
-    platforms: [.macOS(.v10_15), .iOS(.v15), .tvOS(.v13), .visionOS(.v1)],
+    platforms: [.macOS(.v10_15), .iOS(.v15), .tvOS(.v13), .visionOS(.v1), .macCatalyst(.v14)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
