@@ -21,23 +21,6 @@ public extension ARCamera {
     }
 }
 
-// MARK: - ARAnchor extensions
-public extension ARAnchor {
-    func isOnScreen(
-        arView: ARView,
-        bounds: CGRect,
-        margins: CGSize = .zero
-    ) -> Bool {
-        guard let screenPosition = arView.project(self.transform.translation) else {
-            return false
-        }
-        let width = (0 + margins.width) ... (bounds.width - margins.width)
-        let height = (0 + margins.height) ... (bounds.height - margins.height)
-        let inBounds = width.contains(screenPosition.x) && height.contains(screenPosition.y)
-        return inBounds
-    }
-}
-
 // MARK: - ARPlaneAnchor extensions
 public extension ARPlaneAnchor {
     ///Convert from ARKit alignment to RealityKit alignment.
@@ -49,6 +32,31 @@ public extension ARPlaneAnchor {
             return .vertical
         @unknown default:
             return .any
+        }
+    }
+    
+    ///Convert from ARKit classification to RealityKit classification.
+    var targetClassification: AnchoringComponent.Target.Classification {
+        switch self.classification {
+        case .none:
+                .any
+        case .wall:
+                .wall
+        case .floor:
+                .floor
+        case .ceiling:
+                .ceiling
+        case .table:
+                .table
+        case .seat:
+                .seat
+        case .window:
+                .any // Window is not available in RealityKit.
+        case .door:
+                .any // Door is not available in RealityKit.
+        @unknown default:
+            // assertionFailure("Unknown case")
+                .any
         }
     }
     
@@ -70,7 +78,7 @@ public extension ARPlaneAnchor {
     }
 }
 
-extension ARPlaneAnchor.Alignment: CustomStringConvertible {
+extension ARPlaneAnchor.Alignment: @retroactive CustomStringConvertible {
     public var description: String {
         switch self {
         case .horizontal:
@@ -91,7 +99,6 @@ public extension AnchorEntity {
     }
 }
 
-// MARK: - ARView extensions
 public extension ARView {
     /// This performs a raycast from the given screen point.
     /// - Parameters:

@@ -66,6 +66,13 @@ public extension Float {
     var dotTwoDescription: String { String(format: "%0.2f", self) }
 }
 
+//MARK: - SIMD extensions
+public extension SIMD {
+    static func lerp<T: SIMD>(A: T, B: T, t: T.Scalar) -> T where T.Scalar: FloatingPoint {
+        return (1 - t) * A + t * B
+    }
+}
+
 //MARK: - simd_float2 extensions
 public extension SIMD2 where Scalar == Float {
     
@@ -102,17 +109,17 @@ public extension SIMD3 where Scalar == Float {
         return (oldVal * smoothingAmount) + (self * ( 1 - smoothingAmount))
     }
         
-    static var pitch: simd_float3 = [1, 0, 0]
+    static let pitch: simd_float3 = [1, 0, 0]
     
-    static var yaw: simd_float3 = [0, 1, 0]
+    static let yaw: simd_float3 = [0, 1, 0]
     
-    static var roll: simd_float3 = [0, 0, 1]
+    static let roll: simd_float3 = [0, 0, 1]
     
-    static var up: simd_float3 = [0, 1, 0]
+    static let up: simd_float3 = [0, 1, 0]
     
-    static var down: simd_float3 = [0, -1, 0]
+    static let down: simd_float3 = [0, -1, 0]
     
-    static var forward: simd_float3 = [0, 0, -1]
+    static let forward: simd_float3 = [0, 0, -1]
     
     var avg: Float {
         return Float.avg(self.x, self.y, self.z)
@@ -120,6 +127,10 @@ public extension SIMD3 where Scalar == Float {
     
     var max: Float {
         return Swift.max(self.x, self.y, self.z)
+    }
+    
+    func toArray() -> [Float] {
+        return [x, y, z]
     }
     
     func maxLength(_ maxLength: Float) -> simd_float3 {
@@ -156,6 +167,18 @@ public extension SIMD3 where Scalar == Float {
         let y = inputs.map{$0.y}.max() ?? 0.0
         let z = inputs.map{$0.z}.max() ?? 0.0
         return [x,y,z]
+    }
+    
+    var hasNan: Bool {
+        ![x, y, z].allSatisfy({$0.isNaN == false})
+    }
+    
+    func replaceNan(_ replacement: Float = 0) -> simd_float3 {
+        var newVect = self
+        if x.isNaN {newVect.x = replacement}
+        if y.isNaN {newVect.y = replacement}
+        if z.isNaN {newVect.z = replacement}
+        return newVect
     }
 }
 
@@ -273,20 +296,26 @@ public extension float4x4 {
         }
     }
     
-    ///Note: This only works if this transform is relative to nil, otherwise it converts to the parent Entity's coordinate space.
+    @available(*, deprecated, message: "Use toParentSpacePosition(_:) instead.")
     func convertPositionToWorldSpace(_ inputPosition: simd_float3) -> simd_float3 {
-        // Convert the positions from local anchor-space coordinates to world coordinates.
-        let centerLocalTransform = simd_float4x4(translation: inputPosition)
-        let centerWorldPosition = (self * centerLocalTransform).translation
-        return centerWorldPosition
+        toParentSpacePosition(inputPosition)
     }
     
+    @available(*, deprecated, message: "Use fromParentSpacePosition(_:) instead.")
     func convertPositionToLocalSpace(_ inputPosition: simd_float3) -> simd_float3 {
-        // Assuming `self` is a transformation matrix that has been used to convert to world space,
-        // its inverse will convert positions from world coordinates back to local anchor-space coordinates.
-        let worldToLocalTransform = self.inverse
-        let positionLocal = (worldToLocalTransform * simd_float4(inputPosition, 1)).xyz
-        return positionLocal
+        fromParentSpacePosition(inputPosition)
+    }
+    
+    /// Converts a position from this transform’s coordinate space into its parent’s coordinate space.
+    func toParentSpacePosition(_ position: simd_float3) -> simd_float3 {
+        let localTransform = simd_float4x4(translation: position)
+        return (self * localTransform).translation
+    }
+
+    /// Converts a position from the parent’s coordinate space into this transform’s coordinate space.
+    func fromParentSpacePosition(_ position: simd_float3) -> simd_float3 {
+        let inverseTransform = self.inverse
+        return (inverseTransform * simd_float4(position, 1)).xyz
     }
     
     ///Linearly interpolates between x and y, taking the value x when t=0 and y when t=1
@@ -302,7 +331,7 @@ public extension float4x4 {
         return newTransform
     }
 }
-extension float4x4: CustomStringConvertible {
+extension float4x4: @retroactive CustomStringConvertible {
     ///Calling print(myMatrix) prints the *columns* one after another, horizontally. This function allows us to visualize the actual matrix with the columns laid out vertically and the rows laid out horizontally.
     /// - Values are rounded to the nearest hundredths place to keep columns and rows aligned visually.
     public var description: String {

@@ -11,9 +11,18 @@ import AppKit
 import UIKit
 #endif
 
-
 // MARK: - Entity extensions
 public extension Entity {
+    
+    convenience init(name: String) {
+        self.init()
+        self.name = name
+    }
+    
+    convenience init(name: String) async {
+        self.init()
+        self.name = name
+    }
     
     func visit(using block: (Entity) -> Void) {
         block(self)
@@ -22,8 +31,9 @@ public extension Entity {
         }
     }
     
-    func extents(includingInactive: Bool = true) -> simd_float3 {
-        return self.visualBounds(recursive: true, relativeTo: nil, excludeInactive: !includingInactive).extents
+    func extents(includingInactive: Bool = true,
+                 relativeTo referenceEntity: Entity? = nil) -> simd_float3 {
+        return self.visualBounds(recursive: true, relativeTo: referenceEntity, excludeInactive: !includingInactive).extents
     }
     
     /*
@@ -33,7 +43,17 @@ public extension Entity {
      */
     ///There can only be up to one of each type of component in the Entity's ComponentSet.
     func component<T: Component>(forType: T.Type) -> T? {
-        return self.components[T.self] as? T
+#if os(visionOS)
+        return components[T.self]
+#else
+        if #available(iOS 18.0, *) {
+            // Typecasting not required iOS 18.0+
+            return components[T.self]
+        } else {
+            // Fixes compiler warning.
+            return (components[T.self] as Any) as? T
+        }
+#endif
     }
     
     /*
@@ -52,12 +72,21 @@ public extension Entity {
     }
     
     var modelComponent: ModelComponent? {
-        get {
-            return self.component(forType: ModelComponent.self)
-        } set {
-            self.components[ModelComponent.self] = newValue
-        }
+        get { component(forType: ModelComponent.self) }
+        set { components[ModelComponent.self] = newValue }
     }
+    
+    var physicsBodyComponent: PhysicsBodyComponent? {
+        get { component(forType: PhysicsBodyComponent.self) }
+        set { components[PhysicsBodyComponent.self] = newValue }
+    }
+    
+    /// Property for getting or setting an entity's `CollisionComponent`.
+    var collisionComponent: CollisionComponent? {
+        get { component(forType: CollisionComponent.self) }
+        set { components[CollisionComponent.self] = newValue }
+    }
+    
     ///The Entity's transform in world space. That is, relative to `nil`.
     ///- Use `worldTransform.matrix` to get the transform in the form of a 4x4 matrix.
     var worldTransform: Transform {
@@ -98,27 +127,23 @@ public extension Entity {
         self.visit(using: {$0.setTransformMatrix(float4x4.init(diagonal: [1,1,1,1]), relativeTo: self.parent)})
     }
     
-#if !os(visionOS)
-    func isOnScreen(
-        arView: ARView,
-        bounds: CGRect,
-        margins: CGSize = .zero
-    ) -> Bool {
-        guard let screenPosition = arView.project(self.worldPosition) else {
-            return false
-        }
-        let width = (0 + margins.width) ... (bounds.width - margins.width)
-        let height = (0 + margins.height) ... (bounds.height - margins.height)
-        let inBounds = width.contains(screenPosition.x) && height.contains(screenPosition.y)
-        return inBounds
+    func findInRoot(where predicate: (Entity) -> Bool) -> Entity? {
+        guard let root = findAncestor(where: {$0.parent == nil}) else {return nil}
+        
+        return root.findEntity(where: predicate)
     }
-#endif
     
     ///Recursively searches (depth first) through all levels of parents for an Entity that satisfies the given predicate.
     func findAncestor(where predicate: (Entity) -> Bool) -> Entity? {
         guard let parent = parent else {return nil}
         if predicate(parent) { return parent}
         else { return parent.findAncestor(where: predicate) }
+    }
+    
+    ///Recursively searches (depth first) through all levels of parents for an Entity that satisfies the given predicate.
+    func findAncestorOrSelf(where predicate: (Entity) -> Bool) -> Entity? {
+        if predicate(self) {return self}
+        else {return parent?.findAncestorOrSelf(where: predicate)}
     }
     
     ///Recursively searches (depth first) through self and all descendants for an Entity that satisfies the given predicate, Not just through the direct children.

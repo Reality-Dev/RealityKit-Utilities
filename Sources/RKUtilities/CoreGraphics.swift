@@ -68,6 +68,10 @@ public extension CGSize {
         return self + ((newValue - self) * amount)
     }
     
+    func simdVect() -> simd_float2 {
+        return simd_float2(Float(self.width), Float(self.height))
+    }
+    
     static func +(lhs: CGSize, rhs: CGSize) -> CGSize {
         return CGSize(width: lhs.width + rhs.width,
                       height: lhs.height + rhs.height)

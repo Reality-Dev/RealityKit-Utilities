@@ -28,7 +28,7 @@ public extension Entity {
     func modifyMaterials(_ closure: (RealityKit.Material) throws -> RealityKit.Material) rethrows {
         try children.forEach { try $0.modifyMaterials(closure) }
 
-        guard var comp = components[ModelComponent.self] as? ModelComponent else { return }
+        guard var comp = component(forType: ModelComponent.self) else { return }
         comp.materials = try comp.materials.map { try closure($0) }
         components[ModelComponent.self] = comp
     }
